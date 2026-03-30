@@ -1,0 +1,16 @@
+#pragma once
+
+enum class GameState {
+  MAIN_MENU,
+  CHARACTER_SELECT,
+  OPTIONS,
+  PLAYING,
+  BOSS_INTRO,
+  ABILITY_SELECT,
+  PAUSED,
+  GAME_OVER,
+  VICTORY,
+  INVENTORY,
+  STATS_VIEW,
+  ITEM_SWAP
+};

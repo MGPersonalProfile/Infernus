@@ -1,0 +1,229 @@
+{
+    "abilities": [
+        {
+            "id": "fury",
+            "name": "Furia Infernal",
+            "description": "+20% daño",
+            "effect": "damage_boost",
+            "rarity": "common",
+            "value": 0.2,
+            "tags": ["fire", "offense"]
+        },
+        {
+            "id": "iron_skin",
+            "name": "Piel de Hierro",
+            "description": "+25 HP máximo",
+            "effect": "max_hp_up",
+            "rarity": "common",
+            "value": 25,
+            "tags": ["defense"]
+        },
+        {
+            "id": "swift_feet",
+            "name": "Pies Veloces",
+            "description": "+15% velocidad",
+            "effect": "speed_boost",
+            "rarity": "common",
+            "value": 0.15,
+            "tags": ["mobility"]
+        },
+        {
+            "id": "second_wind",
+            "name": "Segundo Aliento",
+            "description": "+30% regen de stamina",
+            "effect": "stamina_regen",
+            "rarity": "common",
+            "value": 0.3,
+            "tags": ["mobility"]
+        },
+        {
+            "id": "vampiric_blade",
+            "name": "Hoja Vampírica",
+            "description": "Roba 10% del daño como vida",
+            "effect": "lifesteal",
+            "rarity": "rare",
+            "value": 0.1,
+            "tags": ["offense", "sustain"]
+        },
+        {
+            "id": "thorns_aura",
+            "name": "Aura de Espinas",
+            "description": "Refleja 5 de daño al ser golpeado",
+            "effect": "thorns",
+            "rarity": "rare",
+            "value": 5.0,
+            "tags": ["defense"]
+        },
+        {
+            "id": "critical_eye",
+            "name": "Ojo Crítico",
+            "description": "15% prob. de golpe crítico (x2)",
+            "effect": "crit_chance",
+            "rarity": "rare",
+            "value": 0.15,
+            "tags": ["offense"]
+        },
+        {
+            "id": "berserker",
+            "name": "Berserker",
+            "description": "+40% daño",
+            "effect": "damage_boost",
+            "rarity": "epic",
+            "value": 0.4,
+            "tags": ["fire", "offense"]
+        },
+        {
+            "id": "healing_surge",
+            "name": "Oleada Sanadora",
+            "description": "Recupera 40 HP",
+            "effect": "heal",
+            "rarity": "common",
+            "value": 40,
+            "tags": ["sustain"]
+        },
+        {
+            "id": "fortify",
+            "name": "Fortificar",
+            "description": "+50 HP máximo",
+            "effect": "max_hp_up",
+            "rarity": "rare",
+            "value": 50,
+            "tags": ["defense"]
+        },
+        {
+            "id": "blade_dance",
+            "name": "Danza de Espadas",
+            "description": "Ataques 20% más rápidos",
+            "effect": "attack_speed_up",
+            "rarity": "rare",
+            "value": 0.2,
+            "tags": ["offense", "mobility"]
+        },
+        {
+            "id": "dash_strike",
+            "name": "Embestida",
+            "description": "El dash causa daño",
+            "effect": "dash_damage",
+            "rarity": "epic",
+            "value": 15.0,
+            "tags": ["offense", "mobility"]
+        },
+        {
+            "id": "blood_pact",
+            "name": "Pacto de Sangre",
+            "description": "Roba 20% del daño como vida",
+            "effect": "lifesteal",
+            "rarity": "epic",
+            "value": 0.2,
+            "tags": ["offense", "sustain"]
+        },
+        {
+            "id": "wind_runner",
+            "name": "Corredor del Viento",
+            "description": "+30% velocidad",
+            "effect": "speed_boost",
+            "rarity": "rare",
+            "value": 0.3,
+            "tags": ["mobility"]
+        },
+        {
+            "id": "divine_shield",
+            "name": "Escudo Divino",
+            "description": "3s de invulnerabilidad",
+            "effect": "shield",
+            "rarity": "epic",
+            "value": 3.0,
+            "tags": ["defense"]
+        },
+        {
+            "id": "fury_blades",
+            "name": "Hojas de Furia",
+            "description": "+35% daño",
+            "effect": "damage_boost",
+            "rarity": "epic",
+            "value": 0.35,
+            "tags": ["fire", "offense"]
+        },
+        {
+            "id": "bone_crusher",
+            "name": "Rompehuesos",
+            "description": "+15% daño",
+            "effect": "damage_boost",
+            "rarity": "rare",
+            "value": 0.15,
+            "tags": ["offense"]
+        },
+        {
+            "id": "shadow_step",
+            "name": "Paso de Sombra",
+            "description": "+25% velocidad",
+            "effect": "speed_boost",
+            "rarity": "rare",
+            "value": 0.25,
+            "tags": ["mobility", "offense"]
+        },
+        {
+            "id": "hellfire_surge",
+            "name": "Oleada Infernal",
+            "description": "+30% daño",
+            "effect": "damage_boost",
+            "rarity": "epic",
+            "value": 0.3,
+            "tags": ["fire", "offense", "sustain"]
+        },
+        {
+            "id": "soul_harvest",
+            "name": "Cosecha de Almas",
+            "description": "Roba 15% del daño como vida",
+            "effect": "lifesteal",
+            "rarity": "rare",
+            "value": 0.15,
+            "tags": ["sustain"]
+        },
+        {
+            "id": "iron_will",
+            "name": "Voluntad de Hierro",
+            "description": "+40 HP máximo",
+            "effect": "max_hp_up",
+            "rarity": "rare",
+            "value": 40,
+            "tags": ["defense"]
+        },
+        {
+            "id": "berserk_fury",
+            "name": "Furia Berserker",
+            "description": "+50% daño",
+            "effect": "damage_boost",
+            "rarity": "epic",
+            "value": 0.5,
+            "tags": ["fire", "offense"]
+        },
+        {
+            "id": "quickstrike",
+            "name": "Golpe Relámpago",
+            "description": "Ataques 35% más rápidos",
+            "effect": "attack_speed_up",
+            "rarity": "epic",
+            "value": 0.35,
+            "tags": ["offense"]
+        },
+        {
+            "id": "thorns_major",
+            "name": "Barrera de Espinas",
+            "description": "Refleja 15 de daño al ser golpeado",
+            "effect": "thorns",
+            "rarity": "epic",
+            "value": 15.0,
+            "tags": ["defense"]
+        },
+        {
+            "id": "stamina_surge",
+            "name": "Oleada de Energía",
+            "description": "+50% regeneración de stamina",
+            "effect": "stamina_regen",
+            "rarity": "rare",
+            "value": 0.5,
+            "tags": ["mobility"]
+        }
+    ]
+}

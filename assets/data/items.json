@@ -1,0 +1,276 @@
+{
+  "items": [
+    {
+      "id": "flame_gauntlet",
+      "name": "Guantelete de Fuego",
+      "description": "+10% daño, ataques dejan fuego",
+      "rarity": "rare",
+      "tags": ["fire", "offense"],
+      "effects": [
+        {"type": "stat_damage", "value": 0.1},
+        {"type": "fire_trail", "value": 0.4}
+      ]
+    },
+    {
+      "id": "iron_boots",
+      "name": "Botas de Hierro",
+      "description": "+20 vida maxima, +10% velocidad",
+      "rarity": "common",
+      "tags": ["defense", "mobility"],
+      "effects": [
+        {"type": "stat_max_hp", "value": 20},
+        {"type": "stat_speed", "value": 0.1}
+      ]
+    },
+    {
+      "id": "blood_amulet",
+      "name": "Amuleto Sangriento",
+      "description": "12% robo de vida",
+      "rarity": "rare",
+      "tags": ["sustain"],
+      "effects": [
+        {"type": "stat_lifesteal", "value": 0.12}
+      ]
+    },
+    {
+      "id": "shadow_cloak",
+      "name": "Capa de Sombras",
+      "description": "+20% velocidad, +10% critico",
+      "rarity": "rare",
+      "tags": ["mobility", "offense"],
+      "effects": [
+        {"type": "stat_speed", "value": 0.2},
+        {"type": "stat_crit", "value": 0.1}
+      ]
+    },
+    {
+      "id": "skull_crown",
+      "name": "Corona de Calavera",
+      "description": "+30% daño, -10 vida maxima",
+      "rarity": "epic",
+      "tags": ["offense"],
+      "effects": [
+        {"type": "stat_damage", "value": 0.3},
+        {"type": "stat_max_hp", "value": -10}
+      ]
+    },
+    {
+      "id": "bone_armor",
+      "name": "Armadura Osea",
+      "description": "+40 vida maxima, +5 espinas",
+      "rarity": "rare",
+      "tags": ["defense"],
+      "effects": [
+        {"type": "stat_max_hp", "value": 40},
+        {"type": "stat_thorns", "value": 5}
+      ]
+    },
+    {
+      "id": "ember_ring",
+      "name": "Anillo de Brasa",
+      "description": "+10% daño, +8% critico",
+      "rarity": "uncommon",
+      "tags": ["fire", "offense"],
+      "effects": [
+        {"type": "stat_damage", "value": 0.1},
+        {"type": "stat_crit", "value": 0.08}
+      ]
+    },
+    {
+      "id": "soul_gem",
+      "name": "Gema de Almas",
+      "description": "+25% regeneracion de stamina, +10% velocidad",
+      "rarity": "uncommon",
+      "tags": ["mobility"],
+      "effects": [
+        {"type": "stat_stamina_regen", "value": 0.25},
+        {"type": "stat_speed", "value": 0.1}
+      ]
+    },
+    {
+      "id": "demon_heart",
+      "name": "Corazon de Demonio",
+      "description": "+50 vida maxima, +15% daño",
+      "rarity": "legendary",
+      "tags": ["fire", "defense"],
+      "effects": [
+        {"type": "stat_max_hp", "value": 50},
+        {"type": "stat_damage", "value": 0.15}
+      ]
+    },
+    {
+      "id": "cursed_blade",
+      "name": "Hoja Maldita",
+      "description": "+40% daño, +15% critico, +10% robo de vida",
+      "rarity": "legendary",
+      "tags": ["offense", "sustain"],
+      "effects": [
+        {"type": "stat_damage", "value": 0.4},
+        {"type": "stat_crit", "value": 0.15},
+        {"type": "stat_lifesteal", "value": 0.1}
+      ]
+    },
+    {
+      "id": "splitting_shard",
+      "name": "Fragmento Divisor",
+      "description": "Ataques golpean un objetivo adicional",
+      "rarity": "rare",
+      "tags": ["offense"],
+      "effects": [
+        {"type": "multi_hit", "value": 1}
+      ]
+    },
+    {
+      "id": "triple_fang",
+      "name": "Colmillo Triple",
+      "description": "Ataques golpean dos objetivos adicionales",
+      "rarity": "epic",
+      "tags": ["offense"],
+      "effects": [
+        {"type": "multi_hit", "value": 2}
+      ]
+    },
+    {
+      "id": "wind_cutter",
+      "name": "Cortaviento",
+      "description": "Lanza un proyectil cortante al atacar",
+      "rarity": "rare",
+      "tags": ["offense", "mobility"],
+      "effects": [
+        {"type": "projectile_attack", "value": 1}
+      ]
+    },
+    {
+      "id": "earthquake_boots",
+      "name": "Botas Sismicas",
+      "description": "Ataques generan ondas de choque en area",
+      "rarity": "rare",
+      "tags": ["offense", "defense"],
+      "effects": [
+        {"type": "area_attack", "value": 1}
+      ]
+    },
+    {
+      "id": "chain_orb",
+      "name": "Orbe de Cadena",
+      "description": "Ataques saltan a 2 enemigos cercanos",
+      "rarity": "epic",
+      "tags": ["offense"],
+      "effects": [
+        {"type": "chain_attack", "value": 2}
+      ]
+    },
+    {
+      "id": "infernal_gauntlet",
+      "name": "Manopla Infernal",
+      "description": "Deja rastro de fuego intenso, +10% daño",
+      "rarity": "epic",
+      "tags": ["fire", "offense"],
+      "effects": [
+        {"type": "fire_trail", "value": 0.5},
+        {"type": "stat_damage", "value": 0.1}
+      ]
+    },
+    {
+      "id": "phoenix_feather",
+      "name": "Pluma de Fenix",
+      "description": "Rastro de fuego devastador, +10% daño",
+      "rarity": "legendary",
+      "tags": ["fire"],
+      "effects": [
+        {"type": "fire_trail", "value": 1.0},
+        {"type": "stat_damage", "value": 0.1}
+      ]
+    },
+    {
+      "id": "storm_caller",
+      "name": "Invocador de Tormentas",
+      "description": "Cadena a 3 enemigos, lanza proyectil electrico",
+      "rarity": "legendary",
+      "tags": ["offense"],
+      "effects": [
+        {"type": "chain_attack", "value": 3},
+        {"type": "projectile_attack", "value": 1}
+      ]
+    },
+    {
+      "id": "vampire_fang",
+      "name": "Colmillo Vampirico",
+      "description": "8% robo de vida, +5% daño",
+      "rarity": "uncommon",
+      "tags": ["sustain"],
+      "effects": [
+        {"type": "stat_lifesteal", "value": 0.08},
+        {"type": "stat_damage", "value": 0.05}
+      ]
+    },
+    {
+      "id": "guardian_shield",
+      "name": "Escudo Guardian",
+      "description": "+30 vida maxima, +8 espinas",
+      "rarity": "rare",
+      "tags": ["defense"],
+      "effects": [
+        {"type": "stat_max_hp", "value": 30},
+        {"type": "stat_thorns", "value": 8}
+      ]
+    },
+    {
+      "id": "swift_dagger",
+      "name": "Daga Veloz",
+      "description": "+15% velocidad de ataque, +10% velocidad",
+      "rarity": "uncommon",
+      "tags": ["mobility", "offense"],
+      "effects": [
+        {"type": "stat_attack_speed", "value": 0.15},
+        {"type": "stat_speed", "value": 0.1}
+      ]
+    },
+    {
+      "id": "berserker_mask",
+      "name": "Mascara Berserker",
+      "description": "+25% daño, +20% velocidad de ataque, -15 vida maxima",
+      "rarity": "epic",
+      "tags": ["offense"],
+      "effects": [
+        {"type": "stat_damage", "value": 0.25},
+        {"type": "stat_attack_speed", "value": 0.2},
+        {"type": "stat_max_hp", "value": -15}
+      ]
+    },
+    {
+      "id": "soul_lantern",
+      "name": "Linterna de Almas",
+      "description": "+15% regeneracion de stamina, +5% critico",
+      "rarity": "common",
+      "tags": ["sustain", "offense"],
+      "effects": [
+        {"type": "stat_stamina_regen", "value": 0.15},
+        {"type": "stat_crit", "value": 0.05}
+      ]
+    },
+    {
+      "id": "frozen_heart",
+      "name": "Corazon Helado",
+      "description": "+8 espinas, +20 vida maxima",
+      "rarity": "uncommon",
+      "tags": ["defense"],
+      "effects": [
+        {"type": "stat_thorns", "value": 8},
+        {"type": "stat_max_hp", "value": 20}
+      ]
+    },
+    {
+      "id": "chaos_orb",
+      "name": "Orbe del Caos",
+      "description": "Golpe multiple, +10% daño, rastro de fuego",
+      "rarity": "legendary",
+      "tags": ["fire", "offense"],
+      "effects": [
+        {"type": "multi_hit", "value": 1},
+        {"type": "stat_damage", "value": 0.1},
+        {"type": "fire_trail", "value": 0.3}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+    "name": "Demonio del Foso",
+    "type": "tank",
+    "hp": 350,
+    "damage": 30,
+    "knockback": 300.0,
+    "aggroRange": 250.0,
+    "attackRange": 60.0,
+    "patrolSpeed": 25.0,
+    "chaseSpeed": 60.0,
+    "attackWindup": 0.7,
+    "specialType": 2,
+    "specialCooldown": 5.0,
+    "lootChance": 1.0,
+    "lootType": "item",
+    "lootValue": 0
+}

@@ -1,0 +1,25 @@
+{
+    "name": "Bruto",
+    "type": "tank",
+    "hp": 100,
+    "damage": 25,
+    "knockback": 250.0,
+    "aggroRange": 200.0,
+    "attackRange": 55.0,
+    "patrolSpeed": 30.0,
+    "chaseSpeed": 70.0,
+    "attackWindup": 0.8,
+    "color": [
+        100,
+        100,
+        120,
+        255
+    ],
+    "size": [
+        56,
+        64
+    ],
+    "lootChance": 0.3,
+    "lootType": "item",
+    "lootValue": 0
+}

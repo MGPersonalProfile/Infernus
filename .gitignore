@@ -1,0 +1,29 @@
+# Archivos de build y ejecutables
+build/
+*.exe
+*.obj
+*.dll
+*.pdb
+*.ilk
+
+# Visual Studio / VS Code
+.vscode/
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.user
+
+# Archivos temporales de SO
+.DS_Store
+Thumbs.db
+
+# Claude / clangd
+.claude/
+.clangd
+compile_commands.json
+
+# Save data
+save/
+
+# Temp files
+*.resolved

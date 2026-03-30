@@ -1,0 +1,21 @@
+{
+    "name": "Arquero de Almas",
+    "type": "ranged",
+    "hp": 120,
+    "damage": 12,
+    "knockback": 80.0,
+    "aggroRange": 400.0,
+    "attackRange": 300.0,
+    "retreatRange": 180.0,
+    "patrolSpeed": 50.0,
+    "chaseSpeed": 100.0,
+    "attackWindup": 0.5,
+    "attackCooldown": 2.0,
+    "projectileSpeed": 300.0,
+    "projectileLifetime": 2.0,
+    "specialType": 1,
+    "specialCooldown": 3.5,
+    "lootChance": 1.0,
+    "lootType": "item",
+    "lootValue": 0
+}

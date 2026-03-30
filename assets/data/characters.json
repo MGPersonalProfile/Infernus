@@ -1,0 +1,40 @@
+{
+    "characters": [
+        {
+            "id": "warrior",
+            "name": "Guerrero",
+            "description": "Equilibrado. Mas vida y daño.",
+            "special": "Golpe Sismico: AoE alrededor (3s CD)",
+            "color": [180, 30, 30, 255],
+            "hp": 120,
+            "damage": 18,
+            "speed": 250.0,
+            "stamina": 100.0,
+            "staminaRegen": 20.0
+        },
+        {
+            "id": "rogue",
+            "name": "Picaro",
+            "description": "Rapido y agil. Menos vida, mas stamina.",
+            "special": "Golpe Sombra: Teletransporte + daño (2s CD)",
+            "color": [30, 160, 30, 255],
+            "hp": 80,
+            "damage": 12,
+            "speed": 320.0,
+            "stamina": 140.0,
+            "staminaRegen": 30.0
+        },
+        {
+            "id": "knight",
+            "name": "Caballero",
+            "description": "Tanque. Mucha vida, lento.",
+            "special": "Escudo Oseo: Invulnerable 2s + espinas (5s CD)",
+            "color": [60, 80, 180, 255],
+            "hp": 180,
+            "damage": 14,
+            "speed": 200.0,
+            "stamina": 80.0,
+            "staminaRegen": 15.0
+        }
+    ]
+}

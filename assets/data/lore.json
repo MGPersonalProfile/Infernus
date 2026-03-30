@@ -1,0 +1,34 @@
+{
+    "entries": [
+        {
+            "id": "circle_7_intro",
+            "title": "El Septimo Circulo",
+            "text": "El rio de sangre hirviente fluye sin cesar. Aqui sufren los violentos contra el projimo, sumergidos segun la gravedad de sus pecados.",
+            "trigger": "game_start"
+        },
+        {
+            "id": "minotaur_legend",
+            "title": "El Minotauro",
+            "text": "Guardián del Septimo Circulo, la bestia de Creta vigila el paso entre los anillos de violencia. Su furia es legendaria.",
+            "trigger": "boss_encounter"
+        },
+        {
+            "id": "flegetonte",
+            "title": "El Flegetonte",
+            "text": "El rio de sangre hirviente castiga a los tiranos y asesinos. Cuanto mas profundo el pecado, mas profunda la inmersion.",
+            "trigger": "room_3"
+        },
+        {
+            "id": "centauros",
+            "title": "Los Centauros",
+            "text": "Criaturas mitad hombre, mitad bestia patrullan las orillas del rio, disparando flechas a quienes intentan emerger.",
+            "trigger": "kill_10"
+        },
+        {
+            "id": "virgilio",
+            "title": "Palabras de Virgilio",
+            "text": "No temas, pues el camino esta trazado. La voluntad divina nos guia a traves de estos horrores hacia la luz.",
+            "trigger": "first_victory"
+        }
+    ]
+}

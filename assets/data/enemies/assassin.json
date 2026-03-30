@@ -1,0 +1,17 @@
+{
+    "name": "Sombra Asesina",
+    "type": "melee",
+    "hp": 20,
+    "damage": 18,
+    "knockback": 80.0,
+    "aggroRange": 300.0,
+    "attackRange": 40.0,
+    "patrolSpeed": 80.0,
+    "chaseSpeed": 200.0,
+    "attackWindup": 0.15,
+    "color": [80, 40, 120, 255],
+    "size": [24, 40],
+    "lootChance": 0.2,
+    "lootType": "item",
+    "lootValue": 0
+}

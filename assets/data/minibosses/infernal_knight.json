@@ -1,0 +1,17 @@
+{
+    "name": "Caballero Infernal",
+    "type": "melee",
+    "hp": 200,
+    "damage": 20,
+    "knockback": 200.0,
+    "aggroRange": 300.0,
+    "attackRange": 50.0,
+    "patrolSpeed": 40.0,
+    "chaseSpeed": 120.0,
+    "attackWindup": 0.4,
+    "specialType": 0,
+    "specialCooldown": 4.0,
+    "lootChance": 1.0,
+    "lootType": "item",
+    "lootValue": 0
+}
