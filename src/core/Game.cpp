@@ -770,7 +770,7 @@ void Game::update(float deltaTime) {
     }
     return;
 
-  case GameState::STATS_VIEW:
+  case GameState::INFO:
     if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_TAB))
       state = GameState::PLAYING;
     return;
@@ -832,8 +832,8 @@ void Game::update(float deltaTime) {
     state = GameState::INVENTORY;
     return;
   }
-  if (inputManager.isActionPressed(InputAction::OPEN_STATS)) {
-    state = GameState::STATS_VIEW;
+  if (inputManager.isActionPressed(InputAction::OPEN_INFO)) {
+    state = GameState::INFO;
     return;
   }
 
@@ -928,11 +928,11 @@ void Game::render() {
     EndMode2D();
     drawInventory();
     break;
-  case GameState::STATS_VIEW:
+  case GameState::INFO:
     BeginMode2D(cameraSystem.camera);
     renderSystem.update(registry);
     EndMode2D();
-    drawStatsWindow();
+    drawInfoMenu();
     break;
   case GameState::ITEM_SWAP:
     BeginMode2D(cameraSystem.camera);
@@ -993,7 +993,9 @@ void Game::render() {
 }
 
 // =============================================================================
-// HUD
+// HUD — minimalist: HP, Stamina, special cooldown indicator only.
+// Everything else (controls, synergies, items, abilities, room) lives
+// in the INFO menu (TAB).
 // =============================================================================
 void Game::drawHUD() {
   if (!registry.isAlive(playerEntity))
@@ -1027,80 +1029,11 @@ void Game::drawHUD() {
     DrawRectangleLinesEx({20, 48, 200, 14}, 1.0f, Color{150, 130, 70, 180});
   }
 
-  TextUtils::draw(TextFormat("Sala %d/%d", currentRoom + 1, totalRooms + 1), 20, 68,
-           12, Color{200, 200, 200, 255});
-
-  // Ability icons
-  if (registry.hasComponent<AbilityHolder>(playerEntity)) {
-    auto &holder = registry.getComponent<AbilityHolder>(playerEntity);
-    UIRenderer::drawAbilityIcons(holder, 20, 90);
+  // Special cooldown — only when on cooldown so the screen stays clean.
+  if (specialCooldownTimer > 0.0f) {
+    TextUtils::draw(TextFormat("L: %.1fs", specialCooldownTimer), 20, 68, 10,
+             Color{180, 80, 80, 255});
   }
-
-  // Right-side HUD: synergies on top, then counters below
-  int rhsX = screenWidth - 200;
-  int rhsY = 20;
-
-  // Synergy indicators
-  UIRenderer::drawSynergyBar(synergySystem, rhsX, rhsY);
-
-  // Calculate where synergies end (each is 16px tall)
-  int synergyCount = (int)synergySystem.getStates().size();
-  int afterSynergies = rhsY + synergyCount * 16 + 6;
-
-  // Ability count indicator
-  if (registry.hasComponent<AbilityHolder>(playerEntity)) {
-    auto &ah = registry.getComponent<AbilityHolder>(playerEntity);
-    if (!ah.abilities.empty()) {
-      TextUtils::draw(TextFormat("Hab:%d [H]", (int)ah.abilities.size()),
-               rhsX, afterSynergies, 10, Color{180, 200, 100, 255});
-      afterSynergies += 14;
-    }
-  }
-
-  // Item count indicator
-  if (registry.hasComponent<ItemHolder>(playerEntity)) {
-    auto &ih = registry.getComponent<ItemHolder>(playerEntity);
-    if (!ih.equippedItems.empty()) {
-      TextUtils::draw(TextFormat("Items:%d/%d [I]", (int)ih.equippedItems.size(),
-                          ih.maxItems),
-               rhsX, afterSynergies, 10, Color{200, 180, 100, 255});
-      afterSynergies += 14;
-    }
-  }
-
-  // Active synergy count
-  {
-    auto &states = synergySystem.getStates();
-    int activeCount = 0;
-    for (auto &s : states) if (s.active) activeCount++;
-    if (activeCount > 0)
-      TextUtils::draw(TextFormat("Sinergias:%d", activeCount),
-               rhsX, afterSynergies, 10, Color{100, 255, 100, 200});
-  }
-
-  // Special attack cooldown indicator
-  {
-    const char *specialName = "Especial [L]";
-    if (currentCharacterId == "warrior")
-      specialName = "Sismico [L]";
-    else if (currentCharacterId == "rogue")
-      specialName = "Sombra [L]";
-    else if (currentCharacterId == "knight")
-      specialName = "Escudo [L]";
-
-    Color specCol = (specialCooldownTimer <= 0.0f)
-                        ? Color{220, 180, 100, 255}
-                        : Color{80, 80, 80, 255};
-    TextUtils::draw(specialName, 20, screenHeight - 44, 12, specCol);
-    if (specialCooldownTimer > 0.0f)
-      TextUtils::draw(TextFormat("%.1fs", specialCooldownTimer), 150, screenHeight - 44,
-               12, Color{180, 80, 80, 255});
-  }
-
-  // Controls hint — shorter to fit pixel font
-  TextUtils::draw("WASD:Move J/K:Atk L:Spec SPACE:Dash I:Items", 20,
-           screenHeight - 24, 10, Color{120, 120, 120, 255});
-  DrawFPS(screenWidth - 90, 4);
 }
 
 void Game::drawBossHealthBar() {
@@ -2095,72 +2028,164 @@ void Game::drawInventory() {
 }
 
 // =============================================================================
-// Stats Window (TAB key)
+// Info Menu (TAB) — single screen with controls, run progress, abilities,
+// active synergies, equipped items, and core stats. The HUD is intentionally
+// minimal so the player comes here when they want context.
 // =============================================================================
-void Game::drawStatsWindow() {
-  DrawRectangle(0, 0, screenWidth, screenHeight, Color{0, 0, 0, 200});
+void Game::drawInfoMenu() {
+  DrawRectangle(0, 0, screenWidth, screenHeight, Color{0, 0, 0, 210});
 
-  // Panel background
-  int mainW = 500, mainH = 520;
-  int mainX = (screenWidth - mainW) / 2, mainY = 25;
-  drawUIPanel(mainX, mainY, mainW, mainH, Color{15, 15, 25, 230},
+  // Two-column layout inside one panel.
+  int mainW = std::min(screenWidth - 60, 980);
+  int mainH = std::min(screenHeight - 60, 640);
+  int mainX = (screenWidth - mainW) / 2;
+  int mainY = (screenHeight - mainH) / 2;
+  drawUIPanel(mainX, mainY, mainW, mainH, Color{15, 15, 25, 235},
               Color{180, 140, 60, 255});
 
-  const char *title = "ESTADISTICAS";
-  TextUtils::drawCenteredShadow(title, 38, 24, Color{220, 180, 100, 255}, screenWidth);
+  TextUtils::drawCenteredShadow("INFORMACION", mainY + 14, 22,
+                                Color{220, 180, 100, 255}, screenWidth);
 
-  if (!registry.hasComponent<PlayerStats>(playerEntity))
-    return;
-  auto &ps = registry.getComponent<PlayerStats>(playerEntity);
+  int colW = (mainW - 60) / 2;
+  int leftX = mainX + 20;
+  int rightX = mainX + 30 + colW;
+  int topY = mainY + 56;
+  int bottomLimit = mainY + mainH - 26;
 
-  int cx = screenWidth / 2 - 180;
-  int sy = 90;
-  int rowH = 22;
-
-  auto drawStat = [&](const char *label, const char *value, Color col) {
-    TextUtils::draw(label, cx, sy, 10, Color{180, 180, 180, 255});
-    TextUtils::draw(value, cx + 180, sy, 10, col);
-    sy += rowH;
+  auto sectionHeader = [&](int x, int y, const char *label) {
+    TextUtils::draw(label, x, y, 12, Color{220, 180, 100, 255});
+    DrawLine(x, y + 18, x + colW, y + 18, Color{120, 90, 40, 200});
   };
 
-  drawStat("Clase:", ps.classId.c_str(), Color{220, 180, 100, 255});
-  sy += 10;
-  drawStat("HP Max:", TextFormat("%d (base %d)", ps.finalMaxHP, ps.baseMaxHP),
-           Color{180, 60, 60, 255});
-  drawStat("Dano:", TextFormat("%d (base %d)", ps.finalDamage, ps.baseDamage),
-           Color{200, 160, 60, 255});
-  drawStat("Velocidad:", TextFormat("%.0f (base %.0f)", ps.finalSpeed, ps.baseSpeed),
-           Color{60, 180, 60, 255});
-  drawStat("Stamina Max:", TextFormat("%.0f", ps.finalMaxStamina),
-           Color{60, 160, 200, 255});
-  drawStat("Regen Stamina:", TextFormat("%.1f", ps.finalStaminaRegen),
-           Color{60, 160, 200, 255});
-  sy += 10;
-  drawStat("Crit:", TextFormat("%.0f%%", ps.finalCritChance * 100.0f),
-           Color{255, 200, 60, 255});
-  drawStat("Robo de Vida:", TextFormat("%.0f%%", ps.finalLifesteal * 100.0f),
+  // ---------- LEFT COLUMN: Controls + Run + Stats ----------
+  int ly = topY;
+
+  sectionHeader(leftX, ly, "CONTROLES");
+  ly += 24;
+  struct Bind { const char *key; const char *desc; };
+  Bind binds[] = {
+    {"WASD",   "Moverse"},
+    {"J",      "Ataque ligero"},
+    {"K",      "Ataque pesado"},
+    {"L",      "Especial de clase"},
+    {"SPACE",  "Esquivar (i-frames)"},
+    {"E",      "Interactuar"},
+    {"I",      "Inventario (descartar)"},
+    {"TAB",    "Este menu"},
+    {"ESC/P",  "Pausa"},
+  };
+  for (auto &b : binds) {
+    if (ly + 14 > bottomLimit) break;
+    TextUtils::draw(b.key, leftX, ly, 10, Color{180, 220, 100, 255});
+    TextUtils::draw(b.desc, leftX + 90, ly, 10, Color{200, 200, 200, 255});
+    ly += 14;
+  }
+
+  ly += 10;
+  sectionHeader(leftX, ly, "RUN");
+  ly += 24;
+  TextUtils::draw(TextFormat("Sala: %d / %d", currentRoom + 1, totalRooms + 1),
+                  leftX, ly, 10, Color{220, 220, 220, 255});
+  ly += 14;
+  TextUtils::draw(TextFormat("Tiempo: %.0fs",
+                             saveManager.getCurrentRun().timePlayed),
+                  leftX, ly, 10, Color{220, 220, 220, 255});
+  ly += 14;
+  if (registry.hasComponent<PlayerStats>(playerEntity)) {
+    auto &ps = registry.getComponent<PlayerStats>(playerEntity);
+    TextUtils::draw(TextFormat("Clase: %s", ps.classId.c_str()), leftX, ly, 10,
+                    Color{220, 180, 100, 255});
+    ly += 18;
+
+    sectionHeader(leftX, ly, "STATS");
+    ly += 24;
+    auto stat = [&](const char *label, const char *value, Color col) {
+      if (ly + 14 > bottomLimit) return;
+      TextUtils::draw(label, leftX, ly, 10, Color{170, 170, 170, 255});
+      TextUtils::draw(value, leftX + 130, ly, 10, col);
+      ly += 14;
+    };
+    stat("HP Max", TextFormat("%d", ps.finalMaxHP), Color{220, 80, 80, 255});
+    stat("Dano", TextFormat("%d", ps.finalDamage), Color{220, 170, 60, 255});
+    stat("Velocidad", TextFormat("%.0f", ps.finalSpeed), Color{80, 200, 80, 255});
+    stat("Stamina", TextFormat("%.0f", ps.finalMaxStamina),
+         Color{80, 180, 220, 255});
+    stat("Crit", TextFormat("%.0f%%", ps.finalCritChance * 100.0f),
+         Color{255, 200, 60, 255});
+    if (ps.finalLifesteal > 0.0f)
+      stat("Robo Vida", TextFormat("%.0f%%", ps.finalLifesteal * 100.0f),
            Color{180, 255, 180, 255});
-  drawStat("Espinas:", TextFormat("%.0f%%", ps.finalThorns * 100.0f),
+    if (ps.finalThorns > 0.0f)
+      stat("Espinas", TextFormat("%.0f%%", ps.finalThorns * 100.0f),
            Color{200, 120, 80, 255});
-  sy += 10;
+  }
 
-  // Attack modifiers
-  if (ps.extraHitboxes > 0)
-    drawStat("Multi-golpe:", TextFormat("+%d", ps.extraHitboxes),
-             Color{255, 180, 100, 255});
-  if (ps.projectileAttack)
-    drawStat("Proyectil:", "Activo", Color{100, 200, 255, 255});
-  if (ps.areaAttack)
-    drawStat("Area:", "Activo", Color{255, 100, 100, 255});
-  if (ps.chainAttack)
-    drawStat("Cadena:", TextFormat("%d rebotes", ps.chainBounces),
-             Color{200, 200, 100, 255});
-  if (ps.fireTrailChance > 0.0f)
-    drawStat("Rastro de Fuego:", TextFormat("%.0f%%", ps.fireTrailChance * 100.0f),
-             Color{255, 120, 30, 255});
+  // ---------- RIGHT COLUMN: Abilities + Synergies + Items ----------
+  int ry = topY;
 
-  TextUtils::drawCentered("[ESC/TAB] Cerrar", screenHeight - 45,
-           8, Color{120, 120, 120, 255}, screenWidth);
+  sectionHeader(rightX, ry, "HABILIDADES");
+  ry += 24;
+  if (registry.hasComponent<AbilityHolder>(playerEntity)) {
+    auto &ah = registry.getComponent<AbilityHolder>(playerEntity);
+    if (ah.abilities.empty()) {
+      TextUtils::draw("(ninguna)", rightX, ry, 10, Color{100, 100, 100, 255});
+      ry += 14;
+    } else {
+      for (auto &ab : ah.abilities) {
+        if (ry + 14 > bottomLimit) break;
+        std::string name = TextUtils::truncate(ab.name, 10, colW);
+        TextUtils::draw(name.c_str(), rightX, ry, 10,
+                        Color{180, 220, 100, 255});
+        ry += 14;
+      }
+    }
+  }
+
+  ry += 10;
+  sectionHeader(rightX, ry, "SINERGIAS");
+  ry += 24;
+  {
+    auto &states = synergySystem.getStates();
+    auto &defs = synergySystem.getDefs();
+    int activeCount = 0;
+    for (int i = 0; i < (int)states.size(); i++) {
+      if (ry + 14 > bottomLimit) break;
+      bool act = states[i].active;
+      if (act) activeCount++;
+      Color col = act ? Color{120, 255, 120, 255} : Color{90, 90, 90, 255};
+      DrawRectangle(rightX, ry + 2, 6, 8, col);
+      std::string n = TextUtils::truncate(defs[i].name, 10, colW - 14);
+      TextUtils::draw(n.c_str(), rightX + 12, ry, 10, col);
+      ry += 14;
+    }
+    if (states.empty())
+      TextUtils::draw("(ninguna)", rightX, ry, 10, Color{100, 100, 100, 255});
+  }
+
+  ry += 10;
+  sectionHeader(rightX, ry, "OBJETOS");
+  ry += 24;
+  if (registry.hasComponent<ItemHolder>(playerEntity)) {
+    auto &ih = registry.getComponent<ItemHolder>(playerEntity);
+    if (ih.equippedItems.empty()) {
+      TextUtils::draw("(ninguno)", rightX, ry, 10, Color{100, 100, 100, 255});
+    } else {
+      for (auto &item : ih.equippedItems) {
+        if (ry + 14 > bottomLimit) break;
+        Color col = {180, 180, 180, 255};
+        if (item.rarity == ItemRarity::UNCOMMON) col = {80, 200, 80, 255};
+        else if (item.rarity == ItemRarity::RARE) col = {80, 140, 255, 255};
+        else if (item.rarity == ItemRarity::EPIC) col = {200, 80, 255, 255};
+        else if (item.rarity == ItemRarity::LEGENDARY) col = {255, 180, 0, 255};
+        std::string n = TextUtils::truncate(item.name, 10, colW);
+        TextUtils::draw(n.c_str(), rightX, ry, 10, col);
+        ry += 14;
+      }
+    }
+  }
+
+  TextUtils::drawCentered("[TAB / ESC] Cerrar", mainY + mainH - 18, 10,
+                          Color{160, 160, 160, 255}, screenWidth);
 }
 
 // =============================================================================

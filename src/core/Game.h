@@ -158,7 +158,7 @@ private:
   void drawOptions();
   void drawRunStats();
   void drawInventory();
-  void drawStatsWindow();
+  void drawInfoMenu();
   void drawItemSwap();
   void drawDebugOverlay();
   void drawAbilitiesView();

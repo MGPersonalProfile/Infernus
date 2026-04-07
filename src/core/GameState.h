@@ -11,6 +11,6 @@ enum class GameState {
   GAME_OVER,
   VICTORY,
   INVENTORY,
-  STATS_VIEW,
+  INFO,
   ITEM_SWAP
 };

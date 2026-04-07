@@ -40,6 +40,12 @@ const puppeteer = require('puppeteer-core');
   await page.screenshot({ path: 'recovery_frames/wasm_gameplay.png', fullPage: false });
   console.log('Screenshot 3: Gameplay saved');
 
+  // Open INFO menu (TAB)
+  await page.keyboard.press('Tab');
+  await new Promise(r => setTimeout(r, 1000));
+  await page.screenshot({ path: 'recovery_frames/wasm_info.png', fullPage: false });
+  console.log('Screenshot 4: Info menu saved');
+
   await browser.close();
   console.log('Done!');
 })();

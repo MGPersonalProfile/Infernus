@@ -15,7 +15,7 @@ enum class InputAction {
   INTERACT,
   SPECIAL_ATTACK,
   OPEN_INVENTORY,
-  OPEN_STATS
+  OPEN_INFO
 };
 
 class InputManager {
@@ -33,7 +33,7 @@ public:
     keyBinds[InputAction::INTERACT] = KEY_E;
     keyBinds[InputAction::SPECIAL_ATTACK] = KEY_L;
     keyBinds[InputAction::OPEN_INVENTORY] = KEY_I;
-    keyBinds[InputAction::OPEN_STATS] = KEY_TAB;
+    keyBinds[InputAction::OPEN_INFO] = KEY_TAB;
 
     // Default Gamepad Bindings (Preparing Interface)
     padBinds[InputAction::MOVE_UP] = GAMEPAD_BUTTON_LEFT_FACE_UP;
