@@ -271,6 +271,46 @@
         {"type": "stat_damage", "value": 0.1},
         {"type": "fire_trail", "value": 0.3}
       ]
+    },
+    {
+      "id": "blood_of_phlegethon",
+      "name": "Sangre del Flegetonte",
+      "description": "Regenera 2 HP/s fuera de combate. Maldicion del rio.",
+      "rarity": "rare",
+      "tags": ["sustain", "defense"],
+      "effects": [
+        {"type": "stat_hp_regen", "value": 2.0}
+      ]
+    },
+    {
+      "id": "ash_ring",
+      "name": "Anillo de Ceniza",
+      "description": "+15% daño. Reliquia del guerrero condenado.",
+      "rarity": "uncommon",
+      "tags": ["fire", "offense"],
+      "effects": [
+        {"type": "stat_damage", "value": 0.15}
+      ]
+    },
+    {
+      "id": "spectral_dagger",
+      "name": "Daga Espectral",
+      "description": "+20% velocidad. Hoja forjada en sombras.",
+      "rarity": "uncommon",
+      "tags": ["mobility"],
+      "effects": [
+        {"type": "stat_speed", "value": 0.2}
+      ]
+    },
+    {
+      "id": "broken_shield",
+      "name": "Escudo Roto",
+      "description": "+25 vida maxima. Restos de una fe perdida.",
+      "rarity": "uncommon",
+      "tags": ["defense"],
+      "effects": [
+        {"type": "stat_max_hp", "value": 25}
+      ]
     }
   ]
 }

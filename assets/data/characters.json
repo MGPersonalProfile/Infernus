@@ -3,38 +3,68 @@
         {
             "id": "warrior",
             "name": "Guerrero",
+            "title": "El Condenado",
             "description": "Equilibrado. Mas vida y daño.",
+            "lore": "Un general caido que masacro pueblos enteros por ambicion. Despierta en lo mas profundo del Infierno, condenado a ascender circulo a circulo.",
             "special": "Golpe Sismico: AoE alrededor (3s CD)",
+            "startItem": "Anillo de Ceniza: +15% daño",
+            "startItemId": "ash_ring",
             "color": [180, 30, 30, 255],
             "hp": 120,
             "damage": 18,
             "speed": 250.0,
             "stamina": 100.0,
-            "staminaRegen": 20.0
+            "staminaRegen": 20.0,
+            "physics": {
+                "mass": 1.0,
+                "acceleration": 12.0,
+                "friction": 10.0,
+                "stunResist": 0.0
+            }
         },
         {
             "id": "rogue",
             "name": "Picaro",
+            "title": "La Sombra",
             "description": "Rapido y agil. Menos vida, mas stamina.",
+            "lore": "Asesino a sueldo en vida, nunca fallo un encargo. El Infierno no pudo frenar sus pasos — solo redirigirlos.",
             "special": "Golpe Sombra: Teletransporte + daño (2s CD)",
+            "startItem": "Daga Espectral: +20% velocidad",
+            "startItemId": "spectral_dagger",
             "color": [30, 160, 30, 255],
             "hp": 80,
             "damage": 12,
             "speed": 320.0,
             "stamina": 140.0,
-            "staminaRegen": 30.0
+            "staminaRegen": 30.0,
+            "physics": {
+                "mass": 0.6,
+                "acceleration": 18.0,
+                "friction": 14.0,
+                "stunResist": 0.2
+            }
         },
         {
             "id": "knight",
             "name": "Caballero",
+            "title": "El Penitente",
             "description": "Tanque. Mucha vida, lento.",
+            "lore": "Templario que perdio la fe tras las Cruzadas. Su armadura maldita lo protege tanto como lo aprisiona.",
             "special": "Escudo Oseo: Invulnerable 2s + espinas (5s CD)",
+            "startItem": "Escudo Roto: +25 HP max",
+            "startItemId": "broken_shield",
             "color": [60, 80, 180, 255],
             "hp": 180,
             "damage": 14,
             "speed": 200.0,
             "stamina": 80.0,
-            "staminaRegen": 15.0
+            "staminaRegen": 15.0,
+            "physics": {
+                "mass": 1.8,
+                "acceleration": 7.0,
+                "friction": 6.0,
+                "stunResist": 0.4
+            }
         }
     ]
 }

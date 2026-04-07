@@ -5,6 +5,7 @@
 #include "../components/Stamina.h"
 #include "../components/Transform.h"
 #include "../utils/Constants.h"
+#include "../utils/TextUtils.h"
 #include "raylib.h"
 #include <algorithm>
 #include <cmath>
@@ -89,7 +90,7 @@ void RenderSystem::update(Registry &registry) {
     DrawRectangle((int)barX, (int)barY,
                   (int)(Constants::HP_BAR_WIDTH * fillRatio),
                   (int)Constants::HP_BAR_HEIGHT, GREEN);
-    DrawText(TextFormat("%d", health.currentHP), (int)barX, (int)(barY - 12),
+    TextUtils::draw(TextFormat("%d", health.currentHP), (int)barX, (int)(barY - 12),
              10, WHITE);
   }
 }

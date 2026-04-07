@@ -13,6 +13,7 @@
 #include "../components/Velocity.h"
 #include "../core/ResourceManager.h"
 #include "../systems/CameraSystem.h"
+#include "../systems/ScreenEffects.h"
 #include "../ui/UIRenderer.h"
 #include "../utils/Constants.h"
 #include <cmath>
@@ -22,10 +23,10 @@
 // =============================================================================
 
 void CombatSystem::update(Registry &registry, CameraSystem &cameraSystem,
-                          float deltaTime) {
+                          ScreenEffects &screenEffects, float deltaTime) {
   processLifetimes(registry, deltaTime);
   processAttackStates(registry, deltaTime);
-  processHitDetection(registry, cameraSystem);
+  processHitDetection(registry, cameraSystem, screenEffects);
 }
 
 // =============================================================================
@@ -91,7 +92,8 @@ static bool checkAABB(const Transform2D &t1, const Collider &c1,
 }
 
 void CombatSystem::processHitDetection(Registry &registry,
-                                       CameraSystem &cameraSystem) {
+                                       CameraSystem &cameraSystem,
+                                       ScreenEffects &screenEffects) {
   auto hitboxView = registry.view<Combat, Collider, Transform2D>();
   auto hurtboxView = registry.view<Health, Collider, Transform2D>();
 
@@ -191,6 +193,10 @@ void CombatSystem::processHitDetection(Registry &registry,
       cameraSystem.addShake(shakeAmount, isCrit ? 0.3f : 0.2f);
       spawnHitParticles(registry, vTransform.x + 20.0f, vTransform.y + 20.0f);
       spawnSlashArc(registry, vTransform.x, vTransform.y);
+
+      // Hitstop on heavy/crit hits
+      if (isCrit || aCombat.baseDamage >= 20)
+        screenEffects.addHitstop(0.06f);
     }
   }
 }

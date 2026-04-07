@@ -370,3 +370,12 @@ void BossAISystem::spawnShockwave(Registry &registry, float x, float y,
   auto &swTransform = registry.getComponent<Transform2D>(sw);
   swTransform.scale = radius / 4.0f;
 }
+
+void BossAISystem::setBossVel(Registry &registry, Entity boss, float vx,
+                              float vy) {
+  if (registry.hasComponent<Velocity>(boss)) {
+    auto &vel = registry.getComponent<Velocity>(boss);
+    vel.vx = vx;
+    vel.vy = vy;
+  }
+}

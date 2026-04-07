@@ -16,7 +16,10 @@ public:
     camera.zoom = 1.0f;
   }
 
+  bool shakeEnabled = true;
+
   void addShake(float intensity, float duration) {
+    if (!shakeEnabled) return;
     shakeIntensity = intensity;
     shakeDuration = duration;
   }

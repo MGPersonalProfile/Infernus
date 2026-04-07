@@ -1,10 +1,10 @@
 {
     "name": "El Minotauro",
     "circle": 7,
-    "hp": 500,
-    "damage": 25,
-    "knockback": 250.0,
-    "chargeSpeed": 650.0,
+    "hp": 1200,
+    "damage": 40,
+    "knockback": 350.0,
+    "chargeSpeed": 850.0,
     "color": [140, 60, 60, 255],
     "size": [80, 80],
     "phases": [
@@ -12,24 +12,24 @@
             "hpThreshold": 1.0,
             "speedMultiplier": 1.0,
             "damageMultiplier": 1.0,
-            "attackWindup": 0.7,
-            "attackCooldown": 2.5,
-            "patterns": ["charge", "ground_slam"]
-        },
-        {
-            "hpThreshold": 0.6,
-            "speedMultiplier": 1.3,
-            "damageMultiplier": 1.3,
             "attackWindup": 0.5,
-            "attackCooldown": 1.8,
+            "attackCooldown": 1.5,
             "patterns": ["charge", "ground_slam", "stomp"]
         },
         {
-            "hpThreshold": 0.3,
-            "speedMultiplier": 1.7,
-            "damageMultiplier": 1.6,
-            "attackWindup": 0.3,
+            "hpThreshold": 0.65,
+            "speedMultiplier": 1.4,
+            "damageMultiplier": 1.4,
+            "attackWindup": 0.35,
             "attackCooldown": 1.0,
+            "patterns": ["charge", "ground_slam", "stomp", "combo"]
+        },
+        {
+            "hpThreshold": 0.35,
+            "speedMultiplier": 1.8,
+            "damageMultiplier": 1.8,
+            "attackWindup": 0.2,
+            "attackCooldown": 0.6,
             "patterns": ["enraged_charge", "ground_slam", "stomp", "combo"]
         }
     ]

@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include "../core/ECS.h"
 #include "../core/GameState.h"
 #include "../core/ResourceManager.h"
@@ -20,6 +21,7 @@
 #include "../systems/StaminaSystem.h"
 #include "../systems/SynergySystem.h"
 #include "../systems/TrapSystem.h"
+#include "../systems/PhysicsVFXSystem.h"
 #include "../systems/ItemSystem.h"
 
 #include "../components/Ability.h"
@@ -70,6 +72,7 @@ private:
   AbilitySystem abilitySystem;
   SynergySystem synergySystem;
   TrapSystem trapSystem;
+  PhysicsVFXSystem physicsVFXSystem;
   ItemSystem itemSystem;
 
   RoomGenerator roomGenerator;
@@ -96,6 +99,21 @@ private:
   // Options menu
   int optionSelected = 0;
   GameState stateBeforeOptions = GameState::MAIN_MENU;
+
+  // Pause menu navigation
+  int pauseSelected = 0;
+
+  // Screen transitions (fade out → switch state → fade in)
+  GameState pendingTransition = GameState::MAIN_MENU;
+  int transitionPhase = 0; // 0=none, 1=fading out, 2=fading in
+  float transitionDuration = 0.25f;
+  void transitionTo(GameState target, float duration = 0.25f);
+  // Callback actions to run when the fade-out completes (before fade-in)
+  std::function<void()> transitionCallback = nullptr;
+
+  // Settings toggles
+  bool screenShakeEnabled = true;
+  bool damageNumbersEnabled = true;
 
   // Inventory
   int inventorySelectedSlot = 0;
@@ -139,6 +157,8 @@ private:
   void drawInventory();
   void drawStatsWindow();
   void drawItemSwap();
+  void drawDebugOverlay();
+  void drawAbilitiesView();
   void startGame(int characterIndex);
   void endRun(bool victory);
 };

@@ -29,8 +29,17 @@ public:
     fadeDirection = -1; // fading out (clear to black)
   }
 
-  // Update all effects. Returns true if in hitstop (caller should skip
-  // gameplay)
+  // Update fade timer (call from the top of Game::update so it ticks in ALL states)
+  void updateFade(float deltaTime) {
+    if (fadeTimer > 0.0f)
+      fadeTimer -= deltaTime;
+  }
+
+  bool isFading() const { return fadeTimer > 0.0f; }
+  bool isFadingOut() const { return fadeTimer > 0.0f && fadeDirection == -1; }
+
+  // Update gameplay effects (hitstop, flash). Returns true if in hitstop.
+  // Fade is NOT updated here — use updateFade() separately.
   bool update(float deltaTime) {
     if (hitstopTimer > 0.0f) {
       hitstopTimer -= deltaTime;
@@ -39,9 +48,6 @@ public:
 
     if (flashTimer > 0.0f)
       flashTimer -= deltaTime;
-
-    if (fadeTimer > 0.0f)
-      fadeTimer -= deltaTime;
 
     return false;
   }

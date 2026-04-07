@@ -33,11 +33,35 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
 
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build"
-)
+# Web (Emscripten) specific settings
+if(EMSCRIPTEN)
+    set(CMAKE_EXECUTABLE_SUFFIX ".html")
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build_web"
+    )
+    target_link_options(${PROJECT_NAME} PRIVATE
+        -sUSE_GLFW=3
+        -sWASM=1
+        -sASYNCIFY
+        -sTOTAL_MEMORY=67108864
+        -sASSERTIONS=1
+        -sALLOW_MEMORY_GROWTH=1
+        "-sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','HEAPF32','HEAPU8']"
+        "-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']"
+        -sLEGACY_RUNTIME=1
+        -sFULL_ES2=1
+        --preload-file "${CMAKE_CURRENT_SOURCE_DIR}/assets@/assets"
+        --shell-file "${CMAKE_CURRENT_SOURCE_DIR}/tools/shell.html"
+    )
+    target_compile_definitions(${PROJECT_NAME} PRIVATE PLATFORM_WEB)
+else()
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build"
+    )
+endif()
 
-# ---- Tests -------------------------------------------------------------------
+# ---- Tests & Tools (desktop only) --------------------------------------------
+if(NOT EMSCRIPTEN)
 
 # ECS unit tests
 add_executable(test_ecs tests/test_ecs.cpp src/core/ECS.cpp)
@@ -64,9 +88,11 @@ foreach(TEST_TARGET test_ecs test_combat)
     )
 endforeach()
 
-# ---- Asset Generator ---------------------------------------------------------
+# Asset Generator
 add_executable(asset_generator tools/asset_generator.cpp)
 target_link_libraries(asset_generator PRIVATE raylib)
 set_target_properties(asset_generator PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build"
 )
+
+endif() # NOT EMSCRIPTEN

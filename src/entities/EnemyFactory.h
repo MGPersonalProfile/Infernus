@@ -13,6 +13,7 @@
 #include "../components/Combat.h"
 #include "../components/Health.h"
 #include "../components/Loot.h"
+#include "../components/PhysicsBody.h"
 #include "../components/Sprite.h"
 #include "../components/Transform.h"
 #include "../components/Velocity.h"
@@ -129,6 +130,16 @@ public:
       else if (lootTypeStr == "item") lootType = LootType::ITEM_DROP;
       int lootValue = data.value("lootValue", 10);
       registry.addComponent<Loot>(enemy, lootType, lootChance, lootValue);
+    }
+
+    // --- Physics (optional, from JSON "physics" block) ---
+    if (data.contains("physics")) {
+      auto &phys = data["physics"];
+      float mass = phys.value("mass", 1.0f);
+      float accel = phys.value("acceleration", 15.0f);
+      float fric = phys.value("friction", 10.0f);
+      float maxSpd = ai.chaseSpeed * 1.5f;
+      registry.addComponent<PhysicsBody>(enemy, mass, accel, fric, maxSpd);
     }
 
     return enemy;

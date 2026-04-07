@@ -1,10 +1,20 @@
 # Archivos de build y ejecutables
 build/
+build_web/
 *.exe
 *.obj
 *.dll
 *.pdb
 *.ilk
+*.wasm
+*.wasm.map
+
+# Recovered alfa archive (large binary)
+Infernus*.zip
+assets/art/Laboratorio_1_CMN.doc.htm
+
+# Debug / playtest screenshots
+recovery_frames/
 
 # Visual Studio / VS Code
 .vscode/

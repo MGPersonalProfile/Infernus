@@ -10,11 +10,19 @@
 #include "../components/Particle.h"
 #include "../components/PlayerStats.h"
 #include "../utils/Constants.h"
+#include "../utils/TextUtils.h"
 #include "raylib.h"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <json.hpp>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#include <emscripten/html5.h>
+#endif
+
+// Pixel font is used via TextUtils::draw / TextUtils::measure throughout.
 
 Game::Game()
     : screenWidth(Constants::SCREEN_WIDTH),
@@ -143,14 +151,16 @@ void Game::checkRoomClear() {
     // Check if boss was killed
     if (currentRoom >= totalRooms) {
       endRun(true);
-      state = GameState::VICTORY;
+      transitionTo(GameState::VICTORY, 0.6f);
       return;
     }
 
-    // Offer ability selection between rooms
-    abilityChoices = abilitySystem.getRandomChoices(3);
-    selectedAbility = 0;
-    state = GameState::ABILITY_SELECT;
+    // Offer ability selection between rooms with a smooth fade
+    transitionCallback = [this]() {
+      abilityChoices = abilitySystem.getRandomChoices(3);
+      selectedAbility = 0;
+    };
+    transitionTo(GameState::ABILITY_SELECT, 0.35f);
   }
 }
 
@@ -491,15 +501,39 @@ void Game::processLootPickups() {
 // =============================================================================
 // Update
 // =============================================================================
+// Start a smooth screen transition (fade out → callback → fade in)
+void Game::transitionTo(GameState target, float duration) {
+  if (transitionPhase != 0) return; // Already in a transition
+  pendingTransition = target;
+  transitionDuration = duration;
+  transitionPhase = 1; // Start fading out
+  screenEffects.startFadeOut(duration);
+}
+
 void Game::update(float deltaTime) {
   AudioManager::getInstance().update();
+
+  // Update fade timer globally (so transitions work in ALL states)
+  screenEffects.updateFade(deltaTime);
+
+  // Handle screen transitions
+  if (transitionPhase == 1 && !screenEffects.isFadingOut()) {
+    // Fade-out complete — run callback, switch state, start fade-in
+    if (transitionCallback) { transitionCallback(); transitionCallback = nullptr; }
+    state = pendingTransition;
+    transitionPhase = 2;
+    screenEffects.startFadeIn(transitionDuration);
+  } else if (transitionPhase == 2 && !screenEffects.isFading()) {
+    transitionPhase = 0;
+  }
+  if (transitionPhase == 1) return; // Block input during fade-out
 
   switch (state) {
   case GameState::MAIN_MENU:
     if (IsKeyPressed(KEY_ENTER)) {
       AudioManager::getInstance().playSFX("menu_confirm");
       selectedCharacter = 0;
-      state = GameState::CHARACTER_SELECT;
+      transitionTo(GameState::CHARACTER_SELECT);
     }
     if (IsKeyPressed(KEY_ESCAPE)) {
       stateBeforeOptions = GameState::MAIN_MENU;
@@ -510,7 +544,7 @@ void Game::update(float deltaTime) {
 
   case GameState::OPTIONS: {
     auto &audio = AudioManager::getInstance();
-    int optionCount = 4; // SFX, Music, Fullscreen, Back
+    int optionCount = 6; // SFX, Music, Fullscreen, ScreenShake, DamageNumbers, Back
     if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
       optionSelected = (optionSelected - 1 + optionCount) % optionCount;
       audio.playSFX("menu_select");
@@ -542,10 +576,33 @@ void Game::update(float deltaTime) {
     } else if (optionSelected == 2) { // Fullscreen
       if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_LEFT) ||
           IsKeyPressed(KEY_RIGHT)) {
+#ifdef __EMSCRIPTEN__
+        EmscriptenFullscreenChangeEvent fsce;
+        emscripten_get_fullscreen_status(&fsce);
+        if (fsce.isFullscreen) {
+          emscripten_exit_fullscreen();
+        } else {
+          emscripten_request_fullscreen("#canvas", true);
+        }
+#else
         ToggleFullscreen();
+#endif
         audio.playSFX("menu_confirm");
       }
-    } else if (optionSelected == 3) { // Back
+    } else if (optionSelected == 3) { // Screen Shake
+      if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_LEFT) ||
+          IsKeyPressed(KEY_RIGHT)) {
+        screenShakeEnabled = !screenShakeEnabled;
+        cameraSystem.shakeEnabled = screenShakeEnabled;
+        audio.playSFX("menu_confirm");
+      }
+    } else if (optionSelected == 4) { // Damage Numbers
+      if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_LEFT) ||
+          IsKeyPressed(KEY_RIGHT)) {
+        damageNumbersEnabled = !damageNumbersEnabled;
+        audio.playSFX("menu_confirm");
+      }
+    } else if (optionSelected == 5) { // Back
       if (IsKeyPressed(KEY_ENTER)) {
         audio.playSFX("menu_confirm");
         state = stateBeforeOptions;
@@ -566,60 +623,82 @@ void Game::update(float deltaTime) {
       selectedCharacter = (selectedCharacter + 1) % 3;
       AudioManager::getInstance().playSFX("menu_select");
     }
-    if (IsKeyPressed(KEY_ENTER))
-      startGame(selectedCharacter);
+    if (IsKeyPressed(KEY_ENTER)) {
+      AudioManager::getInstance().playSFX("menu_confirm");
+      int charIdx = selectedCharacter;
+      transitionCallback = [this, charIdx]() { startGame(charIdx); };
+      transitionTo(GameState::PLAYING, 0.4f);
+    }
     if (IsKeyPressed(KEY_ESCAPE))
-      state = GameState::MAIN_MENU;
+      transitionTo(GameState::MAIN_MENU);
     return;
 
-  case GameState::PAUSED:
-    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_P))
-      state = GameState::PLAYING;
-    if (IsKeyPressed(KEY_O)) {
-      stateBeforeOptions = GameState::PAUSED;
-      optionSelected = 0;
-      state = GameState::OPTIONS;
+  case GameState::PAUSED: {
+    int pauseCount = 3; // Continuar, Opciones, Abandonar
+    if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+      pauseSelected = (pauseSelected - 1 + pauseCount) % pauseCount;
+      AudioManager::getInstance().playSFX("menu_select");
     }
-    if (IsKeyPressed(KEY_Q)) {
-      // Return to menu — clear everything
-      auto all = registry.view<Transform2D>();
-      for (Entity e : all)
-        registry.destroyEntity(e);
-      registry.flushDestroyed();
-      AudioManager::getInstance().playMusic("menu");
-      state = GameState::MAIN_MENU;
+    if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
+      pauseSelected = (pauseSelected + 1) % pauseCount;
+      AudioManager::getInstance().playSFX("menu_select");
+    }
+    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_P)) {
+      state = GameState::PLAYING;
+    } else if (IsKeyPressed(KEY_ENTER)) {
+      AudioManager::getInstance().playSFX("menu_confirm");
+      if (pauseSelected == 0) {
+        state = GameState::PLAYING;
+      } else if (pauseSelected == 1) {
+        stateBeforeOptions = GameState::PAUSED;
+        optionSelected = 0;
+        state = GameState::OPTIONS;
+      } else if (pauseSelected == 2) {
+        transitionCallback = [this]() {
+          auto all = registry.view<Transform2D>();
+          for (Entity e : all) registry.destroyEntity(e);
+          registry.flushDestroyed();
+          AudioManager::getInstance().playMusic("menu");
+        };
+        transitionTo(GameState::MAIN_MENU, 0.4f);
+      }
     }
     return;
+  }
 
   case GameState::GAME_OVER:
     if (IsKeyPressed(KEY_ENTER)) {
-      auto all = registry.view<Transform2D>();
-      for (Entity e : all)
-        registry.destroyEntity(e);
-      registry.flushDestroyed();
-      // Restart — go to character select instead of inline creation
-      selectedCharacter = 0;
-      AudioManager::getInstance().playMusic("menu");
-      state = GameState::CHARACTER_SELECT;
+      AudioManager::getInstance().playSFX("menu_confirm");
+      transitionCallback = [this]() {
+        auto all = registry.view<Transform2D>();
+        for (Entity e : all) registry.destroyEntity(e);
+        registry.flushDestroyed();
+        selectedCharacter = 0;
+        AudioManager::getInstance().playMusic("menu");
+      };
+      transitionTo(GameState::CHARACTER_SELECT, 0.5f);
     }
     if (IsKeyPressed(KEY_ESCAPE)) {
-      auto all = registry.view<Transform2D>();
-      for (Entity e : all)
-        registry.destroyEntity(e);
-      registry.flushDestroyed();
-      AudioManager::getInstance().playMusic("menu");
-      state = GameState::MAIN_MENU;
+      transitionCallback = [this]() {
+        auto all = registry.view<Transform2D>();
+        for (Entity e : all) registry.destroyEntity(e);
+        registry.flushDestroyed();
+        AudioManager::getInstance().playMusic("menu");
+      };
+      transitionTo(GameState::MAIN_MENU, 0.5f);
     }
     return;
 
   case GameState::VICTORY:
     if (IsKeyPressed(KEY_ENTER)) {
-      auto all = registry.view<Transform2D>();
-      for (Entity e : all)
-        registry.destroyEntity(e);
-      registry.flushDestroyed();
-      AudioManager::getInstance().playMusic("menu");
-      state = GameState::MAIN_MENU;
+      AudioManager::getInstance().playSFX("menu_confirm");
+      transitionCallback = [this]() {
+        auto all = registry.view<Transform2D>();
+        for (Entity e : all) registry.destroyEntity(e);
+        registry.flushDestroyed();
+        AudioManager::getInstance().playMusic("menu");
+      };
+      transitionTo(GameState::MAIN_MENU, 0.5f);
     }
     return;
 
@@ -636,14 +715,18 @@ void Game::update(float deltaTime) {
     }
     if (IsKeyPressed(KEY_ENTER) && !abilityChoices.empty()) {
       AudioManager::getInstance().playSFX("menu_confirm");
-      abilitySystem.grantAbility(registry, playerEntity,
-                                 abilityChoices[selectedAbility]);
-      synergySystem.evaluate(registry, playerEntity);
-      recalculatePlayerStats();
-      currentRoom++;
-      spawnRoom();
-      if (state != GameState::BOSS_INTRO)
-        state = GameState::PLAYING;
+      transitionCallback = [this]() {
+        abilitySystem.grantAbility(registry, playerEntity,
+                                   abilityChoices[selectedAbility]);
+        synergySystem.evaluate(registry, playerEntity);
+        recalculatePlayerStats();
+        currentRoom++;
+        spawnRoom();
+        // spawnRoom may set state to BOSS_INTRO; mirror it into pendingTransition
+        if (state == GameState::BOSS_INTRO)
+          pendingTransition = GameState::BOSS_INTRO;
+      };
+      transitionTo(GameState::PLAYING, 0.4f);
     }
     return;
 
@@ -735,8 +818,10 @@ void Game::update(float deltaTime) {
   if (screenEffects.update(deltaTime))
     return; // In hitstop — skip gameplay update
 
-  if (IsKeyPressed(KEY_P) || IsKeyPressed(KEY_ESCAPE))
+  if (IsKeyPressed(KEY_P) || IsKeyPressed(KEY_ESCAPE)) {
+    pauseSelected = 0;
     state = GameState::PAUSED;
+  }
 
   // Inventory / Stats toggle
   if (inputManager.isActionPressed(InputAction::OPEN_INVENTORY)) {
@@ -756,10 +841,10 @@ void Game::update(float deltaTime) {
   if (registry.hasComponent<Health>(playerEntity) &&
       registry.getComponent<Health>(playerEntity).isDead()) {
     endRun(false);
-    state = GameState::GAME_OVER;
+    screenEffects.addFlash(Color{180, 0, 0, 100}, 0.5f);
     AudioManager::getInstance().playSFX("player_death");
     AudioManager::getInstance().stopMusic();
-    screenEffects.addFlash(Color{180, 0, 0, 100}, 0.5f);
+    transitionTo(GameState::GAME_OVER, 0.6f);
     return;
   }
 
@@ -776,10 +861,11 @@ void Game::update(float deltaTime) {
                                     (float)roomGenerator.getPixelWidth(),
                                     (float)roomGenerator.getPixelHeight());
 
+  physicsVFXSystem.update(registry, deltaTime);
   trapSystem.update(registry, deltaTime);
   staminaSystem.update(registry, deltaTime);
   healthSystem.update(registry, deltaTime);
-  combatSystem.update(registry, cameraSystem, deltaTime);
+  combatSystem.update(registry, cameraSystem, screenEffects, deltaTime);
 
   processLootPickups();
   checkRoomClear();
@@ -886,7 +972,7 @@ void Game::render() {
     BeginMode2D(cameraSystem.camera);
     renderSystem.update(registry);
     renderAtmosphericParticles();
-    UIRenderer::renderDamageNumbers(registry);
+    if (damageNumbersEnabled) UIRenderer::renderDamageNumbers(registry);
     EndMode2D();
     drawHUD();
     if (bossEntity != NULL_ENTITY && registry.isAlive(bossEntity))
@@ -898,6 +984,7 @@ void Game::render() {
 
   // Screen effects overlay (vignette, flash, fade)
   screenEffects.render(screenWidth, screenHeight);
+  drawDebugOverlay();
 
   EndDrawing();
 }
@@ -923,7 +1010,7 @@ void Game::drawHUD() {
     DrawRectangleGradientV(20, 31, hpFill, 11, Color{140, 20, 15, 255},
                            Color{100, 10, 10, 255});
     DrawRectangleLinesEx({20, 20, 300, 22}, 1.0f, Color{180, 150, 80, 200});
-    DrawText(TextFormat("HP %d/%d", health.currentHP, health.maxHP), 25, 23, 16,
+    TextUtils::draw(TextFormat("HP %d/%d", health.currentHP, health.maxHP), 25, 24, 12,
              WHITE);
 
     // Stamina Bar (dark bg, green fill, gold border)
@@ -937,8 +1024,8 @@ void Game::drawHUD() {
     DrawRectangleLinesEx({20, 48, 200, 14}, 1.0f, Color{150, 130, 70, 180});
   }
 
-  DrawText(TextFormat("Sala %d/%d", currentRoom + 1, totalRooms + 1), 20, 68,
-           16, Color{200, 200, 200, 255});
+  TextUtils::draw(TextFormat("Sala %d/%d", currentRoom + 1, totalRooms + 1), 20, 68,
+           12, Color{200, 200, 200, 255});
 
   // Ability icons
   if (registry.hasComponent<AbilityHolder>(playerEntity)) {
@@ -946,42 +1033,71 @@ void Game::drawHUD() {
     UIRenderer::drawAbilityIcons(holder, 20, 90);
   }
 
+  // Right-side HUD: synergies on top, then counters below
+  int rhsX = screenWidth - 200;
+  int rhsY = 20;
+
   // Synergy indicators
-  UIRenderer::drawSynergyBar(synergySystem, screenWidth - 180, 20);
+  UIRenderer::drawSynergyBar(synergySystem, rhsX, rhsY);
 
-  // Special attack cooldown indicator
-  {
-    const char *specialName = "Especial [L]";
-    if (currentCharacterId == "warrior")
-      specialName = "Golpe Sismico [L]";
-    else if (currentCharacterId == "rogue")
-      specialName = "Golpe Sombra [L]";
-    else if (currentCharacterId == "knight")
-      specialName = "Escudo Oseo [L]";
+  // Calculate where synergies end (each is 16px tall)
+  int synergyCount = (int)synergySystem.getStates().size();
+  int afterSynergies = rhsY + synergyCount * 16 + 6;
 
-    Color specCol = (specialCooldownTimer <= 0.0f)
-                        ? Color{220, 180, 100, 255}
-                        : Color{80, 80, 80, 255};
-    DrawText(specialName, 20, screenHeight - 46, 16, specCol);
-    if (specialCooldownTimer > 0.0f)
-      DrawText(TextFormat("%.1fs", specialCooldownTimer), 180, screenHeight - 46,
-               16, Color{180, 80, 80, 255});
+  // Ability count indicator
+  if (registry.hasComponent<AbilityHolder>(playerEntity)) {
+    auto &ah = registry.getComponent<AbilityHolder>(playerEntity);
+    if (!ah.abilities.empty()) {
+      TextUtils::draw(TextFormat("Hab:%d [H]", (int)ah.abilities.size()),
+               rhsX, afterSynergies, 10, Color{180, 200, 100, 255});
+      afterSynergies += 14;
+    }
   }
 
   // Item count indicator
   if (registry.hasComponent<ItemHolder>(playerEntity)) {
     auto &ih = registry.getComponent<ItemHolder>(playerEntity);
     if (!ih.equippedItems.empty()) {
-      DrawText(TextFormat("Items: %d/%d [I]", (int)ih.equippedItems.size(),
+      TextUtils::draw(TextFormat("Items:%d/%d [I]", (int)ih.equippedItems.size(),
                           ih.maxItems),
-               screenWidth - 180, 50, 14, Color{200, 180, 100, 255});
+               rhsX, afterSynergies, 10, Color{200, 180, 100, 255});
+      afterSynergies += 14;
     }
   }
 
-  // Controls hint
-  DrawText("WASD:Move J/K:Attack L:Special SPACE:Dash I:Items TAB:Stats", 20,
-           screenHeight - 24, 14, Color{120, 120, 120, 255});
-  DrawFPS(screenWidth - 90, 10);
+  // Active synergy count
+  {
+    auto &states = synergySystem.getStates();
+    int activeCount = 0;
+    for (auto &s : states) if (s.active) activeCount++;
+    if (activeCount > 0)
+      TextUtils::draw(TextFormat("Sinergias:%d", activeCount),
+               rhsX, afterSynergies, 10, Color{100, 255, 100, 200});
+  }
+
+  // Special attack cooldown indicator
+  {
+    const char *specialName = "Especial [L]";
+    if (currentCharacterId == "warrior")
+      specialName = "Sismico [L]";
+    else if (currentCharacterId == "rogue")
+      specialName = "Sombra [L]";
+    else if (currentCharacterId == "knight")
+      specialName = "Escudo [L]";
+
+    Color specCol = (specialCooldownTimer <= 0.0f)
+                        ? Color{220, 180, 100, 255}
+                        : Color{80, 80, 80, 255};
+    TextUtils::draw(specialName, 20, screenHeight - 44, 12, specCol);
+    if (specialCooldownTimer > 0.0f)
+      TextUtils::draw(TextFormat("%.1fs", specialCooldownTimer), 150, screenHeight - 44,
+               12, Color{180, 80, 80, 255});
+  }
+
+  // Controls hint — shorter to fit pixel font
+  TextUtils::draw("WASD:Move J/K:Atk L:Spec SPACE:Dash I:Items", 20,
+           screenHeight - 24, 10, Color{120, 120, 120, 255});
+  DrawFPS(screenWidth - 90, 4);
 }
 
 void Game::drawBossHealthBar() {
@@ -1016,14 +1132,14 @@ void Game::drawBossHealthBar() {
                        2.0f, Color{200, 170, 100, 255});
 
   const char *name = bp.bossName.c_str();
-  int nameW = MeasureText(name, 22);
-  DrawText(name, (screenWidth - nameW) / 2 + 1, barY - 28, 22,
+  int nameW = TextUtils::measure(name, 14);
+  TextUtils::draw(name, (screenWidth - nameW) / 2 + 1, barY - 22, 14,
            Color{0, 0, 0, 180});
-  DrawText(name, (screenWidth - nameW) / 2, barY - 29, 22,
+  TextUtils::draw(name, (screenWidth - nameW) / 2, barY - 23, 14,
            Color{230, 190, 100, 255});
 
-  DrawText(TextFormat("Phase %d/%d", bp.currentPhase + 1, bp.totalPhases),
-           barX + barW + 10, barY + 3, 16, Color{200, 200, 200, 255});
+  TextUtils::draw(TextFormat("Fase %d/%d", bp.currentPhase + 1, bp.totalPhases),
+           barX + barW + 10, barY + 5, 10, Color{200, 200, 200, 255});
 }
 
 void Game::drawMainMenu() {
@@ -1051,94 +1167,91 @@ void Game::drawMainMenu() {
                          Color{0, 0, 0, 0}, Color{0, 0, 0, 220});
 
   // Title with shadow
-  const char *title = "INFERNUS";
-  int tw = MeasureText(title, 80);
-  int tx = (screenWidth - tw) / 2;
-  int ty = screenHeight / 4;
-  DrawText(title, tx + 3, ty + 3, 80, Color{0, 0, 0, 200});
-  DrawText(title, tx, ty, 80, Color{200, 40, 20, 255});
+  int ty = screenHeight / 4 - 20;
+  TextUtils::drawCenteredShadow("INFERNUS", ty, 48,
+           Color{200, 40, 20, 255}, screenWidth);
 
   // Subtitle
-  const char *sub = "\"Abandonad toda esperanza, los que aqui entrais\"";
-  int sw = MeasureText(sub, 16);
-  DrawText(sub, (screenWidth - sw) / 2, ty + 95, 16,
-           Color{180, 150, 100, 255});
+  TextUtils::drawCentered("\"Abandonad toda esperanza\"",
+           ty + 60, 10, Color{180, 150, 100, 255}, screenWidth);
 
   // Menu items with glow effect
-  int menuY = screenHeight / 2 + 50;
-  const char *start = "[ ENTER ] Comenzar";
-  int stw = MeasureText(start, 26);
+  int menuY = screenHeight / 2 + 40;
   float pulse = 0.5f + 0.5f * sinf((float)GetTime() * 3.0f);
   unsigned char alpha = (unsigned char)(180 + 75 * pulse);
-  DrawText(start, (screenWidth - stw) / 2 + 2, menuY + 2, 26,
-           Color{0, 0, 0, 180});
-  DrawText(start, (screenWidth - stw) / 2, menuY, 26,
-           Color{255, 220, 150, alpha});
+  TextUtils::drawCenteredShadow("[ENTER] Comenzar", menuY, 18,
+           Color{255, 220, 150, alpha}, screenWidth);
+  TextUtils::drawCentered("[ESC] Opciones", menuY + 40, 14,
+           Color{140, 130, 120, 255}, screenWidth);
+  TextUtils::drawCentered("[ALT+F4] Salir", menuY + 70, 10,
+           Color{90, 85, 80, 255}, screenWidth);
 
-  const char *opts = "[ ESC ] Opciones";
-  int ow = MeasureText(opts, 20);
-  DrawText(opts, (screenWidth - ow) / 2, menuY + 50, 20,
-           Color{140, 130, 120, 255});
-
-  const char *quit = "[ ALT+F4 ] Salir";
-  int qw = MeasureText(quit, 16);
-  DrawText(quit, (screenWidth - qw) / 2, menuY + 85, 16,
-           Color{90, 85, 80, 255});
+  // Version
+  TextUtils::draw("v0.1.0 Alfa — Circulo VII", 10, screenHeight - 18, 8,
+           Color{60, 60, 60, 180});
 }
 
 void Game::drawPauseMenu() {
   DrawRectangle(0, 0, screenWidth, screenHeight, Color{0, 0, 0, 180});
 
-  int panelW = 350, panelH = 250;
-  int px = (screenWidth - panelW) / 2, py = screenHeight / 3 - 30;
+  int panelW = 500, panelH = 280;
+  int px = (screenWidth - panelW) / 2, py = screenHeight / 3 - 40;
   drawUIPanel(px, py, panelW, panelH, Color{15, 15, 25, 240},
               Color{180, 160, 100, 255});
 
-  const char *txt = "PAUSA";
-  int tw = MeasureText(txt, 50);
-  DrawText(txt, (screenWidth - tw) / 2 + 2, py + 22, 50, Color{0, 0, 0, 180});
-  DrawText(txt, (screenWidth - tw) / 2, py + 20, 50,
-           Color{220, 200, 150, 255});
+  TextUtils::drawCenteredShadow("PAUSA", py + 25, 28, Color{220, 200, 150, 255}, screenWidth);
 
-  DrawText("[ ESC / P ] Continuar", px + 60, py + 100, 20,
-           Color{200, 200, 200, 255});
-  DrawText("[ O ] Opciones", px + 60, py + 135, 20,
-           Color{200, 200, 200, 255});
-  DrawText("[ Q ] Abandonar Run", px + 60, py + 170, 20,
-           Color{200, 200, 200, 255});
+  int itemY = py + 80;
+  int itemH = 50;
+  const char *items[] = {"Continuar", "Opciones", "Abandonar Run"};
+  int cx = screenWidth / 2;
+
+  for (int i = 0; i < 3; i++) {
+    int y = itemY + i * itemH;
+    bool sel = (i == pauseSelected);
+
+    // Highlight bar for selected item
+    if (sel) {
+      DrawRectangle(cx - 180, y - 6, 360, 36, Color{30, 25, 40, 255});
+      DrawRectangleLinesEx({(float)(cx - 180), (float)(y - 6), 360, 36}, 1.0f,
+                           Color{220, 180, 100, 120});
+    }
+
+    float pulse = sel ? (0.5f + 0.5f * sinf((float)GetTime() * 4.0f)) : 0.0f;
+    unsigned char alpha = sel ? (unsigned char)(200 + 55 * pulse) : 160;
+    Color col = sel ? Color{255, 220, 140, alpha} : Color{160, 160, 160, alpha};
+    int fontSize = sel ? 14 : 12;
+
+    TextUtils::drawCentered(items[i], y + 4, fontSize, col, screenWidth);
+
+    // Selection arrow
+    if (sel) {
+      int tw = TextUtils::measure(items[i], fontSize);
+      TextUtils::draw(">", cx - tw / 2 - 20, y + 4, fontSize, Color{220, 180, 100, 255});
+    }
+  }
+
+  TextUtils::drawCentered("[ESC] Volver al juego", py + panelH - 30, 8,
+           Color{80, 80, 80, 200}, screenWidth);
 }
 
 void Game::drawOptions() {
   DrawRectangle(0, 0, screenWidth, screenHeight, Color{5, 5, 15, 255});
 
-  int mainW = 450, mainH = 380;
-  int mainX = (screenWidth - mainW) / 2, mainY = 40;
+  int mainW = 650, mainH = 520;
+  int mainX = (screenWidth - mainW) / 2, mainY = 20;
   drawUIPanel(mainX, mainY, mainW, mainH, Color{12, 12, 22, 230},
               Color{180, 140, 60, 255});
 
-  const char *title = "OPCIONES";
-  int tw = MeasureText(title, 48);
-  DrawText(title, (screenWidth - tw) / 2 + 1, 61, 48, Color{0, 0, 0, 180});
-  DrawText(title, (screenWidth - tw) / 2, 60, 48, Color{220, 180, 100, 255});
+  TextUtils::drawCenteredShadow("OPCIONES", 40, 24, Color{220, 180, 100, 255}, screenWidth);
 
   auto &audio = AudioManager::getInstance();
   int cx = screenWidth / 2;
-  int startY = 180;
-  int rowH = 60;
+  int startY = 85;
+  int rowH = 42;
 
-  // Option labels and values
-  struct Option {
-    const char *label;
-    float value;      // -1 means toggle/button
-    bool isToggle;
-  };
-  Option options[] = {
-      {"Volumen SFX", audio.getSFXVolume(), false},
-      {"Volumen Musica", audio.getMusicVolume(), false},
-      {"Pantalla Completa", (float)IsWindowFullscreen(), true},
-      {"Volver", -1.0f, false},
-  };
-  int optionCount = 4;
+  // Options: SFX, Music, Fullscreen, ScreenShake, DamageNumbers, Back
+  int optionCount = 6;
 
   for (int i = 0; i < optionCount; i++) {
     int y = startY + i * rowH;
@@ -1148,47 +1261,67 @@ void Game::drawOptions() {
 
     // Highlight bar
     if (sel) {
-      DrawRectangle(cx - 200, y - 5, 400, 40, Color{30, 30, 50, 255});
-      DrawRectangleLines(cx - 200, y - 5, 400, 40, Color{220, 180, 100, 120});
+      DrawRectangle(cx - 260, y - 5, 520, 34, Color{30, 30, 50, 255});
+      DrawRectangleLinesEx({(float)(cx - 260), (float)(y - 5), 520, 34}, 1.0f,
+                           Color{220, 180, 100, 120});
     }
 
     if (i < 2) {
       // Volume sliders
-      DrawText(options[i].label, cx - 180, y + 5, 20, labelCol);
+      const char *label = (i == 0) ? "Volumen SFX" : "Volumen Musica";
+      float vol = (i == 0) ? audio.getSFXVolume() : audio.getMusicVolume();
+      TextUtils::draw(label, cx - 240, y + 5, 10, labelCol);
 
-      // Slider bar
-      int barX = cx + 20;
-      int barW = 150;
-      int barY = y + 10;
-      DrawRectangle(barX, barY, barW, 10, Color{40, 40, 50, 255});
-      int fillW = (int)(options[i].value * barW);
-      DrawRectangle(barX, barY, fillW, 10, sel ? Color{220, 180, 100, 255} : Color{120, 120, 140, 255});
-      DrawRectangleLines(barX, barY, barW, 10, Color{80, 80, 100, 255});
-
-      // Percentage
-      DrawText(TextFormat("%d%%", (int)(options[i].value * 100)),
-               barX + barW + 10, y + 5, 18, valCol);
-
+      int barX = cx + 40;
+      int barW = 140;
+      int barY = y + 7;
+      DrawRectangle(barX, barY, barW, 12, Color{40, 40, 50, 255});
+      int fillW = (int)(vol * barW);
+      DrawRectangle(barX, barY, fillW, 12, sel ? Color{220, 180, 100, 255} : Color{120, 120, 140, 255});
+      DrawRectangleLines(barX, barY, barW, 12, Color{80, 80, 100, 255});
+      TextUtils::draw(TextFormat("%d%%", (int)(vol * 100)),
+               barX + barW + 10, y + 5, 10, valCol);
       if (sel) {
-        DrawText("<", barX - 18, y + 3, 20, Color{220, 180, 100, 255});
-        DrawText(">", barX + barW + 55, y + 3, 20, Color{220, 180, 100, 255});
+        TextUtils::draw("<", barX - 14, y + 5, 10, Color{220, 180, 100, 255});
+        TextUtils::draw(">", barX + barW + 55, y + 5, 10, Color{220, 180, 100, 255});
       }
     } else if (i == 2) {
-      // Fullscreen toggle
-      DrawText(options[i].label, cx - 180, y + 5, 20, labelCol);
+      TextUtils::draw("Pantalla Completa", cx - 240, y + 5, 10, labelCol);
       const char *val = IsWindowFullscreen() ? "SI" : "NO";
-      DrawText(val, cx + 80, y + 5, 20, valCol);
-      if (sel)
-        DrawText("[ ENTER ] Cambiar", cx + 20, y + 28, 14, Color{120, 120, 120, 255});
+      TextUtils::draw(val, cx + 100, y + 5, 10, valCol);
+    } else if (i == 3) {
+      TextUtils::draw("Screen Shake", cx - 240, y + 5, 10, labelCol);
+      const char *val = screenShakeEnabled ? "SI" : "NO";
+      TextUtils::draw(val, cx + 100, y + 5, 10, val[0] == 'S' ? Color{100, 255, 100, 255} : Color{255, 80, 80, 255});
+    } else if (i == 4) {
+      TextUtils::draw("Numeros de Dano", cx - 240, y + 5, 10, labelCol);
+      const char *val = damageNumbersEnabled ? "SI" : "NO";
+      TextUtils::draw(val, cx + 100, y + 5, 10, val[0] == 'S' ? Color{100, 255, 100, 255} : Color{255, 80, 80, 255});
     } else {
-      // Back button
-      int bw = MeasureText("< Volver >", 24);
-      DrawText("< Volver >", (screenWidth - bw) / 2, y + 5, 24, labelCol);
+      TextUtils::drawCentered("< Volver >", y + 5, 12, labelCol, screenWidth);
     }
   }
 
-  DrawText("[ ESC ] Volver", cx - 55, screenHeight - 50, 16,
-           Color{80, 80, 80, 255});
+  // Keybinds reference
+  int kbY = startY + optionCount * rowH + 15;
+  DrawRectangle(cx - 260, kbY, 520, 1, Color{60, 50, 40, 200});
+  TextUtils::drawCentered("CONTROLES", kbY + 8, 10, Color{180, 150, 100, 200}, screenWidth);
+  int ky = kbY + 26;
+  Color kc = Color{120, 120, 130, 200};
+  TextUtils::draw("WASD  Movimiento", cx - 220, ky, 8, kc);
+  TextUtils::draw("J     Ataque ligero", cx + 30, ky, 8, kc);
+  ky += 14;
+  TextUtils::draw("K     Ataque pesado", cx - 220, ky, 8, kc);
+  TextUtils::draw("L     Especial", cx + 30, ky, 8, kc);
+  ky += 14;
+  TextUtils::draw("SPACE Dash", cx - 220, ky, 8, kc);
+  TextUtils::draw("I     Inventario", cx + 30, ky, 8, kc);
+  ky += 14;
+  TextUtils::draw("TAB   Estadisticas", cx - 220, ky, 8, kc);
+  TextUtils::draw("H     Habilidades", cx + 30, ky, 8, kc);
+
+  TextUtils::drawCentered("[ESC] Volver", screenHeight - 30, 8,
+           Color{80, 80, 80, 255}, screenWidth);
 }
 
 void Game::drawGameOver() {
@@ -1204,19 +1337,28 @@ void Game::drawGameOver() {
     DrawRectangle(0, 0, screenWidth, screenHeight, Color{0, 0, 0, 180});
   }
 
-  const char *txt = "HAS MUERTO";
-  int tw = MeasureText(txt, 60);
-  DrawText(txt, (screenWidth - tw) / 2 + 3, screenHeight / 6 + 3, 60,
-           Color{0, 0, 0, 200});
-  DrawText(txt, (screenWidth - tw) / 2, screenHeight / 6, 60,
-           Color{200, 30, 20, 255});
+  // Pulsing title
+  float pulse = 0.6f + 0.4f * sinf((float)GetTime() * 2.0f);
+  unsigned char titleAlpha = (unsigned char)(180 + 75 * pulse);
+  TextUtils::drawCenteredShadow("HAS MUERTO", screenHeight / 6, 36,
+           Color{200, 30, 20, titleAlpha}, screenWidth);
+
+  // Decorative line
+  int lineY = screenHeight / 6 + 50;
+  DrawRectangleGradientH(screenWidth / 2 - 200, lineY, 200, 1,
+           Color{0, 0, 0, 0}, Color{140, 20, 10, 200});
+  DrawRectangleGradientH(screenWidth / 2, lineY, 200, 1,
+           Color{140, 20, 10, 200}, Color{0, 0, 0, 0});
 
   drawRunStats();
 
-  DrawText("[ ENTER ] Reintentar", screenWidth / 2 - 90,
-           screenHeight - 100, 20, Color{220, 200, 150, 255});
-  DrawText("[ ESC ] Menu Principal", screenWidth / 2 - 100,
-           screenHeight - 70, 20, Color{150, 140, 130, 255});
+  // Action buttons with visual focus
+  float btnPulse = 0.5f + 0.5f * sinf((float)GetTime() * 3.5f);
+  unsigned char enterAlpha = (unsigned char)(180 + 75 * btnPulse);
+  TextUtils::drawCenteredShadow("[ ENTER ] Reintentar", screenHeight - 85, 12,
+           Color{220, 180, 100, enterAlpha}, screenWidth);
+  TextUtils::drawCentered("[ ESC ] Menu Principal", screenHeight - 60, 10,
+           Color{120, 110, 100, 200}, screenWidth);
 }
 
 void Game::drawVictory() {
@@ -1232,22 +1374,29 @@ void Game::drawVictory() {
     DrawRectangle(0, 0, screenWidth, screenHeight, Color{0, 0, 0, 140});
   }
 
-  const char *txt = "VICTORIA";
-  int tw = MeasureText(txt, 60);
-  DrawText(txt, (screenWidth - tw) / 2 + 3, screenHeight / 8 + 3, 60,
-           Color{0, 0, 0, 200});
-  DrawText(txt, (screenWidth - tw) / 2, screenHeight / 8, 60,
-           Color{255, 210, 60, 255});
+  // Pulsing golden title
+  float pulse = 0.6f + 0.4f * sinf((float)GetTime() * 2.5f);
+  unsigned char titleAlpha = (unsigned char)(200 + 55 * pulse);
+  TextUtils::drawCenteredShadow("VICTORIA", screenHeight / 8, 36,
+           Color{255, 210, 60, titleAlpha}, screenWidth);
 
-  const char *sub = "Has escapado del Circulo VII";
-  int sw = MeasureText(sub, 20);
-  DrawText(sub, (screenWidth - sw) / 2, screenHeight / 4, 20,
-           Color{240, 220, 170, 255});
+  // Decorative gold lines
+  int lineY = screenHeight / 8 + 50;
+  DrawRectangleGradientH(screenWidth / 2 - 220, lineY, 220, 1,
+           Color{0, 0, 0, 0}, Color{220, 180, 60, 220});
+  DrawRectangleGradientH(screenWidth / 2, lineY, 220, 1,
+           Color{220, 180, 60, 220}, Color{0, 0, 0, 0});
+
+  TextUtils::drawCentered("Has escapado del Circulo VII",
+           screenHeight / 4, 12, Color{240, 220, 170, 255}, screenWidth);
 
   drawRunStats();
 
-  DrawText("[ ENTER ] Menu Principal", screenWidth / 2 - 110,
-           screenHeight - 60, 20, Color{220, 200, 160, 255});
+  // Pulsing button
+  float btnPulse = 0.5f + 0.5f * sinf((float)GetTime() * 3.5f);
+  unsigned char alpha = (unsigned char)(180 + 75 * btnPulse);
+  TextUtils::drawCenteredShadow("[ ENTER ] Menu Principal", screenHeight - 70, 12,
+           Color{255, 220, 140, alpha}, screenWidth);
 }
 
 void Game::drawBossIntro() {
@@ -1279,19 +1428,14 @@ void Game::drawBossIntro() {
   if (registry.hasComponent<BossPhase>(bossEntity)) {
     auto &bp = registry.getComponent<BossPhase>(bossEntity);
     const char *name = bp.bossName.c_str();
-    int tw = MeasureText(name, 50);
-    DrawText(name, (screenWidth - tw) / 2 + 2, screenHeight / 2 + 142, 50,
-             Color{0, 0, 0, 200});
-    DrawText(name, (screenWidth - tw) / 2, screenHeight / 2 + 140, 50,
-             Color{220, 180, 100, 255});
+    TextUtils::drawCenteredShadow(name, screenHeight / 2 + 145, 28,
+             Color{220, 180, 100, 255}, screenWidth);
   }
 
   float pulse = 0.5f + 0.5f * sinf((float)GetTime() * 2.5f);
   unsigned char alpha = (unsigned char)(120 + 135 * pulse);
-  const char *prep = "Preparate...";
-  int pw = MeasureText(prep, 20);
-  DrawText(prep, (screenWidth - pw) / 2, screenHeight / 2 + 200, 20,
-           Color{180, 160, 140, alpha});
+  TextUtils::drawCentered("Preparate...", screenHeight / 2 + 190, 14,
+           Color{180, 160, 140, alpha}, screenWidth);
 }
 
 void Game::startGame(int characterIndex) {
@@ -1353,6 +1497,25 @@ void Game::startGame(int characterIndex) {
   registry.getComponent<AbilityHolder>(playerEntity).speedMultiplier =
       spd / Constants::PLAYER_SPEED;
 
+  // Grant starting item from character data
+  if (file.is_open()) {
+    // Re-read since stream was consumed
+    std::ifstream file2("assets/data/characters.json");
+    if (file2.is_open()) {
+      json data2;
+      file2 >> data2;
+      auto &chars2 = data2["characters"];
+      if (characterIndex < (int)chars2.size()) {
+        std::string startItemId = chars2[characterIndex].value("startItemId", "");
+        if (!startItemId.empty()) {
+          ItemData startItem = itemSystem.getItemById(startItemId);
+          if (!startItem.id.empty())
+            itemSystem.grantItem(registry, playerEntity, startItem);
+        }
+      }
+    }
+  }
+
   currentRoom = 0;
   bossEntity = NULL_ENTITY;
   specialCooldownTimer = 0.0f;
@@ -1379,10 +1542,16 @@ void Game::drawCharacterSelect() {
   }
 
   const char *title = "ELIGE TU GUERRERO";
-  int tw = MeasureText(title, 36);
-  DrawText(title, (screenWidth - tw) / 2 + 2, screenHeight / 10 + 2, 36,
+  int titleSize = 28;
+  int tw = TextUtils::measure(title, titleSize);
+  // Auto-shrink if too wide for screen
+  while (tw > screenWidth - 80 && titleSize > 16) {
+    titleSize -= 2;
+    tw = TextUtils::measure(title, titleSize);
+  }
+  TextUtils::draw(title, (screenWidth - tw) / 2 + 2, screenHeight / 10 + 2, titleSize,
            Color{0, 0, 0, 180});
-  DrawText(title, (screenWidth - tw) / 2, screenHeight / 10, 36,
+  TextUtils::draw(title, (screenWidth - tw) / 2, screenHeight / 10, titleSize,
            Color{220, 180, 100, 255});
 
   using json = nlohmann::json;
@@ -1441,41 +1610,60 @@ void Game::drawCharacterSelect() {
 
     int textY = cy + innerPad + 180 + 8; // right below portrait
 
-    // Name — centered
+    // Name — centered, auto-shrink if too wide
     std::string name = c.value("name", "???");
-    int nameSize = 22;
-    int nw = MeasureText(name.c_str(), nameSize);
-    DrawText(name.c_str(), cx + (cardW - nw) / 2 + 1, textY + 1, nameSize,
+    int nameSize = 18;
+    while (TextUtils::measure(name.c_str(), nameSize) > contentW && nameSize > 10)
+      nameSize -= 2;
+    int nw = TextUtils::measure(name.c_str(), nameSize);
+    TextUtils::draw(name.c_str(), cx + (cardW - nw) / 2 + 1, textY + 1, nameSize,
              Color{0, 0, 0, 180});
-    DrawText(name.c_str(), cx + (cardW - nw) / 2, textY, nameSize,
+    TextUtils::draw(name.c_str(), cx + (cardW - nw) / 2, textY, nameSize,
              selected ? Color{255, 230, 160, 255} : Color{180, 180, 180, 255});
     textY += nameSize + 4;
 
-    // Stats — single compact line right under name
-    const char *statLine = TextFormat("HP:%d  DMG:%d  SPD:%.0f  STA:%.0f",
-        c.value("hp", 100), c.value("damage", 15),
+    // Stats — 2 rows, colored values
+    int statSize = 10;
+    const char *statLine1 = TextFormat("HP:%d  DMG:%d",
+        c.value("hp", 100), c.value("damage", 15));
+    const char *statLine2 = TextFormat("SPD:%.0f STA:%.0f",
         c.value("speed", 250.0f), c.value("stamina", 100.0f));
-    int statW = MeasureText(statLine, 10);
-    DrawText(statLine, cx + (cardW - statW) / 2, textY, 10,
-             Color{180, 180, 180, 255});
-    textY += 14;
+    // Auto-shrink stats if needed
+    int sfs = statSize;
+    while (TextUtils::measure(statLine1, sfs) > contentW && sfs > 6) sfs--;
+    TextUtils::draw(statLine1, cx + innerPad, textY, sfs,
+             Color{120, 200, 120, 255});
+    textY += sfs + 3;
+    TextUtils::draw(statLine2, cx + innerPad, textY, sfs,
+             Color{120, 200, 120, 255});
+    textY += sfs + 5;
 
-    // Description
+    // Description — single line, truncate cleanly with "..."
+    int descSize = 8;
     std::string desc = c.value("description", "");
-    std::string descDraw = desc;
-    while (MeasureText(descDraw.c_str(), 10) > contentW && descDraw.size() > 3)
-      descDraw = descDraw.substr(0, descDraw.size() - 4) + "...";
-    DrawText(descDraw.c_str(), cx + innerPad, textY, 10,
+    while (TextUtils::measure(desc.c_str(), descSize) > contentW && desc.size() > 4) {
+      desc.pop_back();
+    }
+    // If we truncated, trim trailing spaces and add ellipsis
+    if (desc.size() < c.value("description", std::string("")).size()) {
+      while (!desc.empty() && desc.back() == ' ') desc.pop_back();
+      desc += "...";
+    }
+    TextUtils::draw(desc.c_str(), cx + innerPad, textY, descSize,
              Color{150, 150, 150, 255});
-    textY += 14;
+    textY += descSize + 4;
 
-    // Special ability
+    // Special ability — single line, truncate cleanly
     std::string special = c.value("special", "");
+    while (TextUtils::measure(special.c_str(), descSize) > contentW && special.size() > 4) {
+      special.pop_back();
+    }
+    if (special.size() < c.value("special", std::string("")).size()) {
+      while (!special.empty() && special.back() == ' ') special.pop_back();
+      special += "...";
+    }
     if (!special.empty()) {
-      std::string specDraw = special;
-      while (MeasureText(specDraw.c_str(), 10) > contentW && specDraw.size() > 3)
-        specDraw = specDraw.substr(0, specDraw.size() - 4) + "...";
-      DrawText(specDraw.c_str(), cx + innerPad, textY, 10,
+      TextUtils::draw(special.c_str(), cx + innerPad, textY, descSize,
                Color{220, 180, 100, 200});
     }
 
@@ -1484,14 +1672,19 @@ void Game::drawCharacterSelect() {
       float pulse = 0.5f + 0.5f * sinf((float)GetTime() * 4.0f);
       unsigned char a = (unsigned char)(40 * pulse);
       DrawRectangle(cx, cy, cardW, cardH, Color{220, 180, 100, a});
-      DrawText("v", cx + cardW / 2 - 5, cy - 22, 24,
+      TextUtils::draw("v", cx + cardW / 2 - 5, cy - 22, 24,
                Color{220, 180, 100, 255});
     }
   }
 
-  const char *hint = "[ A/D ] Seleccionar   [ ENTER ] Confirmar   [ ESC ] Volver";
-  int hintW = MeasureText(hint, 18);
-  DrawText(hint, (screenWidth - hintW) / 2, screenHeight - 45, 18,
+  const char *hint = "[A/D] Seleccionar  [ENTER] Confirmar  [ESC] Volver";
+  int hintSize = 12;
+  int hintW = TextUtils::measure(hint, hintSize);
+  while (hintW > screenWidth - 40 && hintSize > 8) {
+    hintSize -= 2;
+    hintW = TextUtils::measure(hint, hintSize);
+  }
+  TextUtils::draw(hint, (screenWidth - hintW) / 2, screenHeight - 40, hintSize,
            Color{130, 125, 120, 255});
 }
 
@@ -1504,21 +1697,20 @@ void Game::drawAbilitySelect() {
   drawUIPanel(mainX, mainY, mainW, mainH, Color{12, 12, 22, 230},
               Color{160, 130, 60, 255});
 
-  const char *title = "ELIGE UNA HABILIDAD";
-  int tw = MeasureText(title, 36);
-  DrawText(title, (screenWidth - tw) / 2 + 1, 51, 36, Color{0, 0, 0, 180});
-  DrawText(title, (screenWidth - tw) / 2, 50, 36, Color{220, 180, 100, 255});
+  TextUtils::drawCenteredShadow("ELIGE UNA HABILIDAD", 40, 22,
+           Color{220, 180, 100, 255}, screenWidth);
 
-  int cardW = 350, cardH = 120;
-  int startY = 140;
+  int cardW = 500, cardH = 100;
+  int startY = 100;
 
   for (int i = 0; i < (int)abilityChoices.size(); i++) {
     auto &ab = abilityChoices[i];
     int cardX = (screenWidth - cardW) / 2;
-    int cardY = startY + i * (cardH + 20);
+    int cardY = startY + i * (cardH + 15);
+    int contentW = cardW - 30;
 
     // Rarity color
-    Color rarityCol = Color{180, 180, 180, 255}; // common
+    Color rarityCol = Color{180, 180, 180, 255};
     const char *rarityText = "COMUN";
     if (ab.rarity == AbilityRarity::RARE) {
       rarityCol = Color{80, 140, 255, 255};
@@ -1528,59 +1720,54 @@ void Game::drawAbilitySelect() {
       rarityText = "EPICO";
     }
 
-    // Card background
-    Color bgCol = (i == selectedAbility) ? Color{40, 40, 60, 255}
-                                         : Color{20, 20, 30, 255};
-    DrawRectangle(cardX, cardY, cardW, cardH, bgCol);
+    // Card background + border
+    bool sel = (i == selectedAbility);
+    DrawRectangle(cardX, cardY, cardW, cardH,
+                  sel ? Color{40, 40, 60, 255} : Color{20, 20, 30, 255});
+    DrawRectangleLines(cardX, cardY, cardW, cardH,
+                       sel ? Color{220, 180, 100, 255} : rarityCol);
 
-    // Border (highlighted if selected)
-    Color borderCol =
-        (i == selectedAbility) ? Color{220, 180, 100, 255} : rarityCol;
-    DrawRectangleLines(cardX, cardY, cardW, cardH, borderCol);
-
-    // Selection arrow
-    if (i == selectedAbility) {
-      DrawText(">", cardX - 25, cardY + cardH / 2 - 12, 24,
+    if (sel)
+      TextUtils::draw(">", cardX - 20, cardY + cardH / 2 - 8, 16,
                Color{220, 180, 100, 255});
-    }
 
-    // Ability name and rarity
-    DrawText(ab.name.c_str(), cardX + 15, cardY + 12, 24, rarityCol);
-    int rw = MeasureText(rarityText, 14);
-    DrawText(rarityText, cardX + cardW - rw - 15, cardY + 16, 14, rarityCol);
+    // Name + rarity tag
+    std::string nameStr = TextUtils::truncate(ab.name, 14, contentW - 80);
+    TextUtils::draw(nameStr.c_str(), cardX + 15, cardY + 10, 14, rarityCol);
+    int rw = TextUtils::measure(rarityText, 10);
+    TextUtils::draw(rarityText, cardX + cardW - rw - 15, cardY + 12, 10, rarityCol);
 
-    // Description
-    DrawText(ab.description.c_str(), cardX + 15, cardY + 48, 18, WHITE);
+    // Description — truncate to fit
+    std::string descStr = TextUtils::truncate(ab.description, 10, contentW);
+    TextUtils::draw(descStr.c_str(), cardX + 15, cardY + 35, 10, WHITE);
 
     // Tags
     int tagX = cardX + 15;
     for (auto &tag : ab.tags) {
-      DrawText(tag.c_str(), tagX, cardY + cardH - 28, 12,
+      TextUtils::draw(tag.c_str(), tagX, cardY + cardH - 22, 8,
                Color{100, 100, 120, 255});
-      tagX += MeasureText(tag.c_str(), 12) + 12;
+      tagX += TextUtils::measure(tag.c_str(), 8) + 10;
     }
   }
 
-  // Controls hint
-  DrawText("[ W/S ] Seleccionar   [ ENTER ] Confirmar",
-           screenWidth / 2 - 200, screenHeight - 50, 18,
-           Color{120, 120, 120, 255});
+  // Controls
+  TextUtils::drawCentered("[W/S] Seleccionar  [ENTER] Confirmar",
+           screenHeight - 45, 12, Color{120, 120, 120, 255}, screenWidth);
 
-  // Show current abilities and active synergies
+  // Active abilities + synergies sidebar
   if (registry.hasComponent<AbilityHolder>(playerEntity)) {
     auto &holder = registry.getComponent<AbilityHolder>(playerEntity);
-    DrawText(TextFormat("Habilidades: %d", (int)holder.abilities.size()), 20,
-             20, 16, Color{150, 150, 150, 255});
+    TextUtils::draw(TextFormat("Habilidades: %d", (int)holder.abilities.size()), 15,
+             15, 10, Color{150, 150, 150, 255});
 
-    // Show active synergies
     auto &synStates = synergySystem.getStates();
     auto &synDefs = synergySystem.getDefs();
-    int sy = 44;
+    int sy = 32;
     for (int i = 0; i < (int)synStates.size(); i++) {
       Color col = synStates[i].active ? Color{100, 255, 100, 255}
                                       : Color{80, 80, 80, 255};
-      DrawText(synDefs[i].name.c_str(), 20, sy, 14, col);
-      sy += 18;
+      TextUtils::draw(synDefs[i].name.c_str(), 15, sy, 10, col);
+      sy += 14;
     }
   }
 }
@@ -1602,22 +1789,29 @@ void Game::drawRunStats() {
   auto &run = saveManager.getCurrentRun();
   auto &prog = saveManager.getProgress();
 
-  int cx = screenWidth / 2;
   int sy = screenHeight / 2 + 30;
 
-  DrawText(TextFormat("Salas: %d/%d", run.roomsCleared, run.totalRooms),
-           cx - 80, sy, 18, Color{200, 200, 200, 255});
-  DrawText(TextFormat("Enemigos: %d", run.enemiesKilled), cx - 80, sy + 24, 18,
-           Color{200, 200, 200, 255});
-  DrawText(TextFormat("Tiempo: %.1fs", run.timePlayed), cx - 80, sy + 48, 18,
-           Color{200, 200, 200, 255});
-  DrawText(TextFormat("Habilidades: %d", run.abilitiesCollected), cx - 80,
-           sy + 72, 18, Color{200, 200, 200, 255});
+  int statSize = 12;
+  int lifeSize = 8;
+  TextUtils::drawCentered(TextFormat("Salas: %d/%d", run.roomsCleared, run.totalRooms),
+           sy, statSize, Color{200, 200, 200, 255}, screenWidth);
+  TextUtils::drawCentered(TextFormat("Enemigos: %d", run.enemiesKilled),
+           sy + 20, statSize, Color{200, 200, 200, 255}, screenWidth);
+  TextUtils::drawCentered(TextFormat("Tiempo: %.1fs", run.timePlayed),
+           sy + 40, statSize, Color{200, 200, 200, 255}, screenWidth);
+  TextUtils::drawCentered(TextFormat("Habilidades: %d", run.abilitiesCollected),
+           sy + 60, statSize, Color{200, 200, 200, 255}, screenWidth);
 
   // Lifetime stats
-  DrawText(TextFormat("Runs totales: %d | Victorias: %d", prog.totalRuns,
-                      prog.totalVictories),
-           cx - 140, sy + 110, 14, Color{120, 120, 120, 255});
+  TextUtils::drawCentered(TextFormat("Runs: %d  Victorias: %d  Muertes: %d", prog.totalRuns,
+                      prog.totalVictories, prog.totalDeaths),
+           sy + 95, lifeSize, Color{120, 120, 120, 255}, screenWidth);
+  TextUtils::drawCentered(TextFormat("Enemigos totales: %d  Mejor sala: %d",
+                      prog.totalEnemiesKilled, prog.bestRoom),
+           sy + 110, lifeSize, Color{120, 120, 120, 255}, screenWidth);
+  if (prog.bestTime > 0.0f)
+    TextUtils::drawCentered(TextFormat("Mejor tiempo: %.1fs", prog.bestTime),
+             sy + 125, lifeSize, Color{120, 120, 120, 255}, screenWidth);
 }
 
 // =============================================================================
@@ -1821,10 +2015,10 @@ void Game::drawMiniBossHealthBar() {
 
     // Name with drop shadow
     const char *name = mb.name.c_str();
-    int nameW = MeasureText(name, 20);
-    DrawText(name, barX + (barW - nameW) / 2 + 1, barY - 25, 20,
+    int nameW = TextUtils::measure(name, 12);
+    TextUtils::draw(name, barX + (barW - nameW) / 2 + 1, barY - 20, 12,
              Color{0, 0, 0, 180});
-    DrawText(name, barX + (barW - nameW) / 2, barY - 26, 20,
+    TextUtils::draw(name, barX + (barW - nameW) / 2, barY - 21, 12,
              Color{220, 180, 100, 255});
     break; // Only show one
   }
@@ -1843,9 +2037,7 @@ void Game::drawInventory() {
               Color{180, 140, 60, 255});
 
   const char *title = "INVENTARIO";
-  int tw = MeasureText(title, 36);
-  DrawText(title, (screenWidth - tw) / 2 + 1, 41, 36, Color{0, 0, 0, 180});
-  DrawText(title, (screenWidth - tw) / 2, 40, 36, Color{220, 180, 100, 255});
+  TextUtils::drawCenteredShadow(title, 38, 24, Color{220, 180, 100, 255}, screenWidth);
 
   if (!registry.hasComponent<ItemHolder>(playerEntity))
     return;
@@ -1883,19 +2075,20 @@ void Game::drawInventory() {
         rarText = "Legendario";
       }
 
-      DrawText(item.name.c_str(), px + 10, sy + 5, 20, rarCol);
-      int rw = MeasureText(rarText, 12);
-      DrawText(rarText, px + panelW - rw - 10, sy + 8, 12, rarCol);
-      DrawText(item.description.c_str(), px + 10, sy + 30, 14,
+      std::string truncName = TextUtils::truncate(item.name, 12, panelW - 100);
+      TextUtils::draw(truncName.c_str(), px + 10, sy + 5, 12, rarCol);
+      int rw = TextUtils::measure(rarText, 8);
+      TextUtils::draw(rarText, px + panelW - rw - 10, sy + 7, 8, rarCol);
+      std::string truncDesc = TextUtils::truncate(item.description, 10, panelW - 20);
+      TextUtils::draw(truncDesc.c_str(), px + 10, sy + 24, 10,
                Color{150, 150, 150, 255});
     } else {
-      DrawText("[ Vacio ]", px + 10, sy + 18, 16, Color{60, 60, 60, 255});
+      TextUtils::draw("[ Vacio ]", px + 10, sy + 18, 10, Color{60, 60, 60, 255});
     }
   }
 
-  DrawText("[ W/S ] Navegar  [ X ] Descartar  [ ESC/I ] Cerrar",
-           (screenWidth - 380) / 2, screenHeight - 50, 16,
-           Color{120, 120, 120, 255});
+  TextUtils::drawCentered("[W/S] Navegar  [X] Descartar  [ESC] Cerrar",
+           screenHeight - 45, 8, Color{120, 120, 120, 255}, screenWidth);
 }
 
 // =============================================================================
@@ -1911,21 +2104,19 @@ void Game::drawStatsWindow() {
               Color{180, 140, 60, 255});
 
   const char *title = "ESTADISTICAS";
-  int tw = MeasureText(title, 36);
-  DrawText(title, (screenWidth - tw) / 2 + 1, 41, 36, Color{0, 0, 0, 180});
-  DrawText(title, (screenWidth - tw) / 2, 40, 36, Color{220, 180, 100, 255});
+  TextUtils::drawCenteredShadow(title, 38, 24, Color{220, 180, 100, 255}, screenWidth);
 
   if (!registry.hasComponent<PlayerStats>(playerEntity))
     return;
   auto &ps = registry.getComponent<PlayerStats>(playerEntity);
 
-  int cx = screenWidth / 2 - 150;
-  int sy = 110;
-  int rowH = 28;
+  int cx = screenWidth / 2 - 180;
+  int sy = 90;
+  int rowH = 22;
 
   auto drawStat = [&](const char *label, const char *value, Color col) {
-    DrawText(label, cx, sy, 20, Color{180, 180, 180, 255});
-    DrawText(value, cx + 220, sy, 20, col);
+    TextUtils::draw(label, cx, sy, 10, Color{180, 180, 180, 255});
+    TextUtils::draw(value, cx + 180, sy, 10, col);
     sy += rowH;
   };
 
@@ -1965,8 +2156,8 @@ void Game::drawStatsWindow() {
     drawStat("Rastro de Fuego:", TextFormat("%.0f%%", ps.fireTrailChance * 100.0f),
              Color{255, 120, 30, 255});
 
-  DrawText("[ ESC / TAB ] Cerrar", (screenWidth - 180) / 2, screenHeight - 50,
-           16, Color{120, 120, 120, 255});
+  TextUtils::drawCentered("[ESC/TAB] Cerrar", screenHeight - 45,
+           8, Color{120, 120, 120, 255}, screenWidth);
 }
 
 // =============================================================================
@@ -1979,9 +2170,7 @@ void Game::drawItemSwap() {
   drawUIPanel(mainX, mainY, mainW, mainH, Color{15, 15, 25, 230},
               Color{200, 160, 60, 255});
 
-  const char *title = "INVENTARIO LLENO — INTERCAMBIAR";
-  int tw = MeasureText(title, 28);
-  DrawText(title, (screenWidth - tw) / 2, 30, 28, Color{255, 200, 80, 255});
+  TextUtils::drawCenteredShadow("INTERCAMBIAR ITEM", 28, 18, Color{255, 200, 80, 255}, screenWidth);
 
   // Show new item
   int newBoxW = 450, newBoxH = 60;
@@ -1989,10 +2178,12 @@ void Game::drawItemSwap() {
   int nby = 75;
   DrawRectangle(nbx, nby, newBoxW, newBoxH, Color{30, 40, 20, 255});
   DrawRectangleLines(nbx, nby, newBoxW, newBoxH, Color{180, 220, 80, 255});
-  DrawText("Nuevo:", nbx + 10, nby + 5, 14, Color{180, 220, 80, 255});
-  DrawText(pendingItem.name.c_str(), nbx + 10, nby + 22, 20,
+  TextUtils::draw("Nuevo:", nbx + 10, nby + 5, 10, Color{180, 220, 80, 255});
+  std::string truncNewName = TextUtils::truncate(pendingItem.name, 12, newBoxW - 20);
+  TextUtils::draw(truncNewName.c_str(), nbx + 10, nby + 20, 12,
            Color{255, 220, 100, 255});
-  DrawText(pendingItem.description.c_str(), nbx + 10, nby + 44, 12,
+  std::string truncNewDesc = TextUtils::truncate(pendingItem.description, 8, newBoxW - 20);
+  TextUtils::draw(truncNewDesc.c_str(), nbx + 10, nby + 40, 8,
            Color{150, 150, 150, 255});
 
   // Show current inventory to choose which to replace
@@ -2014,16 +2205,17 @@ void Game::drawItemSwap() {
     DrawRectangleLines(px, sy, panelW, slotH, border);
 
     auto &item = ih.equippedItems[i];
-    DrawText(item.name.c_str(), px + 10, sy + 5, 18, WHITE);
-    DrawText(item.description.c_str(), px + 10, sy + 26, 12,
+    std::string truncSlotName = TextUtils::truncate(item.name, 12, panelW - 20);
+    TextUtils::draw(truncSlotName.c_str(), px + 10, sy + 5, 12, WHITE);
+    std::string truncSlotDesc = TextUtils::truncate(item.description, 8, panelW - 20);
+    TextUtils::draw(truncSlotDesc.c_str(), px + 10, sy + 22, 8,
              Color{130, 130, 130, 255});
 
-    if (sel) DrawText(">", px - 18, sy + 12, 20, Color{255, 100, 100, 255});
+    if (sel) TextUtils::draw(">", px - 14, sy + 10, 14, Color{255, 100, 100, 255});
   }
 
-  DrawText("[ W/S ] Elegir  [ ENTER ] Reemplazar  [ ESC ] Descartar nuevo",
-           (screenWidth - 450) / 2, screenHeight - 45, 14,
-           Color{120, 120, 120, 255});
+  TextUtils::drawCentered("[W/S] Elegir [ENTER] Reemplazar [ESC] Descartar",
+           screenHeight - 40, 8, Color{120, 120, 120, 255}, screenWidth);
 }
 
 // =============================================================================
@@ -2106,6 +2298,88 @@ void Game::renderAtmosphericParticles() {
     Color c = p.color;
     c.a = (unsigned char)(c.a * alpha);
     DrawRectangle((int)p.x, (int)p.y, (int)p.size, (int)p.size, c);
+  }
+}
+
+// =============================================================================
+// Debug Overlay
+// =============================================================================
+void Game::drawDebugOverlay() {
+#ifndef NDEBUG
+  DrawFPS(10, 10);
+  int entityCount = 0;
+  auto all = registry.view<Transform2D>();
+  entityCount = (int)all.size();
+
+  char buf[256];
+  snprintf(buf, sizeof(buf), "Entities: %d  Room: %d/%d  Enemies: %d",
+           entityCount, currentRoom + 1, totalRooms, enemiesAlive);
+  TextUtils::draw(buf, 10, 35, 16, Color{180, 180, 180, 200});
+
+  if (playerEntity != NULL_ENTITY && registry.hasComponent<Health>(playerEntity)) {
+    auto &h = registry.getComponent<Health>(playerEntity);
+    auto &s = registry.getComponent<Stamina>(playerEntity);
+    snprintf(buf, sizeof(buf), "HP: %d/%d  Stam: %.0f/%.0f",
+             h.currentHP, h.maxHP, s.currentStamina, s.maxStamina);
+    TextUtils::draw(buf, 10, 55, 16, Color{180, 180, 180, 200});
+
+    // Physics debug
+    if (registry.hasComponent<PhysicsBody>(playerEntity)) {
+      auto &pb = registry.getComponent<PhysicsBody>(playerEntity);
+      auto &vel = registry.getComponent<Velocity>(playerEntity);
+      float speed = sqrtf(vel.vx * vel.vx + vel.vy * vel.vy);
+      snprintf(buf, sizeof(buf), "Mass:%.1f Accel:%.0f Fric:%.0f",
+               pb.mass, pb.acceleration, pb.friction);
+      TextUtils::draw(buf, 10, 75, 16, Color{180, 180, 180, 200});
+      snprintf(buf, sizeof(buf), "Speed: %.0f  Imp: %.0f", speed, pb.maxSpeed);
+      TextUtils::draw(buf, 10, 95, 16, Color{180, 180, 180, 200});
+    }
+
+    // Combat debug
+    if (registry.hasComponent<Combat>(playerEntity) &&
+        registry.hasComponent<AbilityHolder>(playerEntity)) {
+      auto &c = registry.getComponent<Combat>(playerEntity);
+      auto &ah = registry.getComponent<AbilityHolder>(playerEntity);
+      snprintf(buf, sizeof(buf), "Stun:%.2f AtkMult:%.1f Dash:%s",
+               c.stateTimer, ah.windupMultiplier,
+               (h.isInvulnerable() ? "yes" : "no"));
+      TextUtils::draw(buf, 10, 115, 16, Color{180, 180, 180, 200});
+    }
+  }
+
+  // Boss phase indicator
+  if (bossEntity != NULL_ENTITY && registry.isAlive(bossEntity) &&
+      registry.hasComponent<BossPhase>(bossEntity)) {
+    auto &bp = registry.getComponent<BossPhase>(bossEntity);
+    snprintf(buf, sizeof(buf), "Phase %d/%d", bp.currentPhase + 1,
+             (int)bp.phases.size());
+    TextUtils::draw(buf, 10, 135, 16, Color{255, 180, 80, 200});
+  }
+
+  TextUtils::draw("Blue=Vel Green=Target Red=Impulse", 10, screenHeight - 70, 12,
+           Color{100, 100, 100, 150});
+#endif
+}
+
+// =============================================================================
+// Abilities View
+// =============================================================================
+void Game::drawAbilitiesView() {
+  if (playerEntity == NULL_ENTITY || !registry.hasComponent<AbilityHolder>(playerEntity))
+    return;
+
+  auto &holder = registry.getComponent<AbilityHolder>(playerEntity);
+  int y = 100;
+  TextUtils::draw("HABILIDADES ACTIVAS", 20, y, 14, Color{220, 180, 100, 255});
+  y += 22;
+
+  for (auto &ab : holder.abilities) {
+    Color rarityColor = WHITE;
+    if (ab.rarity == AbilityRarity::RARE) rarityColor = Color{100, 180, 255, 255};
+    else if (ab.rarity == AbilityRarity::EPIC) rarityColor = Color{180, 100, 255, 255};
+    std::string truncAb = TextUtils::truncate(ab.name, 10, 300);
+    TextUtils::draw(truncAb.c_str(), 30, y, 10, rarityColor);
+    y += 16;
   }
 }
 

@@ -1,29 +1,26 @@
 {
-    "name": "Lanzafuego",
+    "name": "Centauro",
     "type": "ranged",
-    "hp": 20,
-    "damage": 8,
-    "knockback": 50.0,
-    "aggroRange": 350.0,
-    "attackRange": 280.0,
-    "retreatRange": 150.0,
-    "patrolSpeed": 40.0,
-    "chaseSpeed": 80.0,
-    "attackWindup": 0.5,
-    "attackCooldown": 1.5,
-    "projectileSpeed": 300.0,
-    "projectileLifetime": 2.0,
-    "color": [
-        255,
-        120,
-        30,
-        255
-    ],
-    "size": [
-        28,
-        40
-    ],
-    "lootChance": 0.3,
+    "hp": 35,
+    "damage": 12,
+    "knockback": 80.0,
+    "aggroRange": 450.0,
+    "attackRange": 320.0,
+    "retreatRange": 180.0,
+    "patrolSpeed": 60.0,
+    "chaseSpeed": 110.0,
+    "attackWindup": 0.35,
+    "attackCooldown": 1.0,
+    "projectileSpeed": 400.0,
+    "projectileLifetime": 2.5,
+    "color": [255, 120, 30, 255],
+    "size": [28, 40],
+    "lootChance": 0.4,
     "lootType": "stamina",
-    "lootValue": 20
+    "lootValue": 15,
+    "physics": {
+        "mass": 0.5,
+        "acceleration": 16.0,
+        "friction": 12.0
+    }
 }

@@ -20,4 +20,5 @@ private:
                             CameraSystem &cam);
   void spawnShockwave(Registry &registry, float x, float y, float radius,
                       int damage, Entity owner);
+  void setBossVel(Registry &registry, Entity boss, float vx, float vy);
 };

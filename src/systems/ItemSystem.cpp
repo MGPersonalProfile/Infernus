@@ -57,6 +57,12 @@ void ItemSystem::loadItems(const std::string &path) {
   }
 }
 
+ItemData ItemSystem::getItemById(const std::string &id) const {
+  for (auto &item : itemPool)
+    if (item.id == id) return item;
+  return ItemData{};
+}
+
 ItemData ItemSystem::getRandomItem(int difficulty) const {
   if (itemPool.empty()) return ItemData{};
 

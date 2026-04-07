@@ -2,33 +2,93 @@
     "entries": [
         {
             "id": "circle_7_intro",
-            "title": "El Septimo Circulo",
-            "text": "El rio de sangre hirviente fluye sin cesar. Aqui sufren los violentos contra el projimo, sumergidos segun la gravedad de sus pecados.",
+            "title": "El Septimo Circulo — Violencia",
+            "text": "Tres anillos de violencia aguardan: contra el projimo, contra uno mismo, contra Dios. El rio Flegetonte hierve con la sangre de los tiranos. El bosque llora con las voces de los suicidas. La arena arde bajo la lluvia de fuego que castiga a los blasfemos.",
             "trigger": "game_start"
         },
         {
             "id": "minotaur_legend",
-            "title": "El Minotauro",
-            "text": "Guardián del Septimo Circulo, la bestia de Creta vigila el paso entre los anillos de violencia. Su furia es legendaria.",
+            "title": "La Infamia de Creta",
+            "text": "En la punta del precipicio yacia la infamia de Creta, concebida en la falsa vaca. Al vernos, se mordio a si mismo, como aquel a quien la ira destroza por dentro. Esta bestia no guarda el paso por deber — lo guarda porque la ira es lo unico que le queda.",
             "trigger": "boss_encounter"
         },
         {
             "id": "flegetonte",
             "title": "El Flegetonte",
-            "text": "El rio de sangre hirviente castiga a los tiranos y asesinos. Cuanto mas profundo el pecado, mas profunda la inmersion.",
-            "trigger": "room_3"
+            "text": "El rio de sangre hirviente castiga a los tiranos y asesinos segun su culpa: algunos sumergidos hasta las cejas, otros hasta el pecho, otros apenas los pies. Los centauros patrullan sus orillas y asaetean a quien intente emerger mas de lo que su pecado permite.",
+            "trigger": "room_1"
         },
         {
             "id": "centauros",
-            "title": "Los Centauros",
-            "text": "Criaturas mitad hombre, mitad bestia patrullan las orillas del rio, disparando flechas a quienes intentan emerger.",
+            "title": "Los Centauros del Flegetonte",
+            "text": "Quiron, el mas sabio. Neso, el mas fiero. Folo, el mas salvaje. Mil centauros patrullan el rio de sangre con arcos siempre tensos. En vida fueron bestias de la mitologia; en el Infierno, Dios los puso como carceleros de los violentos.",
+            "trigger": "kill_5"
+        },
+        {
+            "id": "bosque_suicidas",
+            "title": "El Bosque de los Suicidas",
+            "text": "Aqui no hay verde follaje, sino ramas oscuras; no frutos suaves, sino espinas venenosas. Las arpias anidan en los arboles retorcidos, desgarrando las ramas para que las almas griten su dolor eterno. Cada arbol fue una persona que se quito la vida.",
+            "trigger": "room_2"
+        },
+        {
+            "id": "arpias",
+            "title": "Las Arpias",
+            "text": "Tienen alas anchas, cuellos y rostros humanos, pies con garras y gran vientre emplumado. Gritan lamentos en los arboles extranos. Se alimentan del dolor de los suicidas, desgarrando sus ramas para que hablen a traves del dolor.",
             "trigger": "kill_10"
         },
         {
-            "id": "virgilio",
-            "title": "Palabras de Virgilio",
-            "text": "No temas, pues el camino esta trazado. La voluntad divina nos guia a traves de estos horrores hacia la luz.",
+            "id": "lluvia_fuego",
+            "title": "La Lluvia de Fuego",
+            "text": "Sobre arena ardiente caen lentos copos de fuego, como nieve en los Alpes sin viento. Los blasfemos yacen de espaldas, los sodomitas corren en circulos eternos, los usureros se encogen bajo el peso de sus bolsas. Nadie escapa al fuego divino.",
+            "trigger": "room_3"
+        },
+        {
+            "id": "virgilio_guia",
+            "title": "Palabras Susurradas",
+            "text": "En las grietas del aire, donde paso Virgilio guiando a Dante, aun resuenan sus palabras: 'Aqui conviene abandonar todo recelo; aqui conviene que toda cobardia muera.' Pero Virgilio guiaba a un poeta. Tu no eres poeta — eres un traidor.",
             "trigger": "first_victory"
+        },
+        {
+            "id": "paso_dante",
+            "title": "Las Grietas de Dante",
+            "text": "El paso de Dante y Virgilio dejo heridas en el orden del Infierno. Los guardianes fueron humillados — el Minotauro, burlado; Caronte, ignorado; Minos, contradicho. Esas grietas son tu camino. Pero los guardianes recuerdan su humillacion, y esta vez no dejaran pasar a nadie.",
+            "trigger": "room_4"
+        },
+        {
+            "id": "neso",
+            "title": "Neso el Centauro",
+            "text": "En vida, Neso intento raptar a Deyanira, esposa de Heracles. Murio por la flecha envenenada del heroe. En el Infierno, fue condenado a vigilar el rio de sangre por toda la eternidad — un violento castigando a los violentos. Ironias del Infierno.",
+            "trigger": "miniboss_neso"
+        },
+        {
+            "id": "quiron",
+            "title": "Quiron, Jefe de los Centauros",
+            "text": "El mas sabio de los centauros. Maestro de Aquiles, de Asclepio, de Jason. En el Infierno, su sabiduria se convirtio en crueldad calculada. Comanda a los centauros con precision militar. Cada flecha que dispara encuentra su destino.",
+            "trigger": "miniboss_quiron"
+        },
+        {
+            "id": "almas_tiranos",
+            "title": "Los Tiranos del Flegetonte",
+            "text": "Alejandro, Dionisio, Atila. Sus nombres ya no importan — estan sumergidos en sangre hasta las cejas, eternamente. Algunos logran emerger brevemente, solo para que los centauros los asaeten de vuelta a su tormento.",
+            "trigger": "kill_20"
+        },
+        {
+            "id": "pier_delle_vigne",
+            "title": "El Arbol que Habla",
+            "text": "Pier delle Vigne, canciller de Federico II, se quito la vida tras ser acusado injustamente. Ahora es un arbol retorcido en el bosque. Cuando sus ramas se quiebran, de la herida brotan sangre y palabras: 'Por que me desgarras? No tienes piedad?'",
+            "trigger": "destructible_kill"
+        },
+        {
+            "id": "minotauro_fase2",
+            "title": "La Ira Ciega",
+            "text": "La bestia se muerde a si misma. En vida, el Minotauro fue prisionero del laberinto de Creta. En muerte, es prisionero de su propia ira. No puede parar — la furia es su condena eterna. Cada golpe que da se lo da tambien a si mismo.",
+            "trigger": "boss_phase2"
+        },
+        {
+            "id": "escape_cocito",
+            "title": "El Despertar",
+            "text": "No recuerdas cuanto tiempo llevas en el hielo. Quizas siglos. El Cocito te congelo hasta los huesos, pero algo cambio — una grieta en el hielo, un temblor. Alguien paso por aqui. Alguien importante. Y dejo una puerta abierta.",
+            "trigger": "lore_pickup"
         }
     ]
 }

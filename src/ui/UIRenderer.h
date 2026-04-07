@@ -4,6 +4,7 @@
 #include "../components/Transform.h"
 #include "../core/ECS.h"
 #include "../systems/SynergySystem.h"
+#include "../utils/TextUtils.h"
 #include "raylib.h"
 
 // Centralized UI drawing utilities
@@ -20,8 +21,7 @@ public:
   // Draw centered text
   static void drawCenteredText(const char *text, int y, int fontSize,
                                Color color, int screenWidth) {
-    int tw = MeasureText(text, fontSize);
-    DrawText(text, (screenWidth - tw) / 2, y, fontSize, color);
+    TextUtils::drawCentered(text, y, fontSize, color, screenWidth);
   }
 
   // Draw a "card" panel
@@ -55,7 +55,7 @@ public:
       unsigned char a = (unsigned char)(dn.alpha() * 255.0f);
       Color col = {dn.color.r, dn.color.g, dn.color.b, a};
       int fontSize = 20;
-      DrawText(dn.text.c_str(), (int)t.x, (int)t.y, fontSize, col);
+      TextUtils::draw(dn.text.c_str(), (int)t.x, (int)t.y, fontSize, col);
     }
   }
 
@@ -94,7 +94,7 @@ public:
 
       // First letter of ability name
       char letter[2] = {ab.name[0], '\0'};
-      DrawText(letter, x + 6, y + 4, 16, col);
+      TextUtils::draw(letter, x + 6, y + 4, 16, col);
     }
   }
 
@@ -108,7 +108,7 @@ public:
       Color col = states[i].active ? Color{100, 255, 100, 200}
                                    : Color{60, 60, 60, 100};
       DrawRectangle(x, y + i * 16, 8, 12, col);
-      DrawText(defs[i].name.c_str(), x + 12, y + i * 16 - 1, 12,
+      TextUtils::draw(defs[i].name.c_str(), x + 12, y + i * 16 - 1, 12,
                states[i].active ? Color{200, 255, 200, 255}
                                 : Color{80, 80, 80, 150});
     }

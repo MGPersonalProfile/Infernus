@@ -1,0 +1,18 @@
+{
+    "name": "Quiron",
+    "type": "melee",
+    "hp": 350,
+    "damage": 30,
+    "knockback": 250.0,
+    "aggroRange": 400.0,
+    "attackRange": 55.0,
+    "patrolSpeed": 60.0,
+    "chaseSpeed": 150.0,
+    "attackWindup": 0.3,
+    "attackCooldown": 0.8,
+    "specialType": 0,
+    "specialCooldown": 3.5,
+    "lootChance": 1.0,
+    "lootType": "item",
+    "lootValue": 0
+}

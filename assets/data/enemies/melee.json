@@ -1,25 +1,23 @@
 {
-    "name": "Demonio Menor",
+    "name": "Alma Violenta",
     "type": "melee",
-    "hp": 30,
-    "damage": 10,
-    "knockback": 100.0,
-    "aggroRange": 250.0,
-    "attackRange": 45.0,
-    "patrolSpeed": 60.0,
-    "chaseSpeed": 140.0,
-    "attackWindup": 0.2,
-    "color": [
-        200,
-        50,
-        50,
-        255
-    ],
-    "size": [
-        32,
-        48
-    ],
-    "lootChance": 0.4,
+    "hp": 50,
+    "damage": 15,
+    "knockback": 120.0,
+    "aggroRange": 400.0,
+    "attackRange": 50.0,
+    "patrolSpeed": 80.0,
+    "chaseSpeed": 180.0,
+    "attackWindup": 0.15,
+    "attackCooldown": 0.8,
+    "color": [200, 50, 50, 255],
+    "size": [32, 48],
+    "lootChance": 0.45,
     "lootType": "health",
-    "lootValue": 15
+    "lootValue": 10,
+    "physics": {
+        "mass": 0.8,
+        "acceleration": 18.0,
+        "friction": 12.0
+    }
 }
