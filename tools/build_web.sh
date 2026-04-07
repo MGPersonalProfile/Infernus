@@ -32,8 +32,8 @@ cmake -S "$PROJECT_DIR" -B "$BUILD_DIR" \
     -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
     -DPLATFORM=Web \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_EXE_LINKER_FLAGS="-s USE_GLFW=3 -s ASSERTIONS=1 -s WASM=1 -s ASYNCIFY -s TOTAL_MEMORY=67108864 --preload-file $PROJECT_DIR/assets@/assets --shell-file $PROJECT_DIR/tools/shell.html" \
-    -G "Unix Makefiles" \
+    -DCMAKE_MAKE_PROGRAM=mingw32-make \
+    -G "MinGW Makefiles" \
     2>&1
 
 # Build

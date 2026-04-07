@@ -37,11 +37,36 @@ public:
     return textures[key];
   }
 
+  // Codepoints to load: ASCII printable (32-126) + Latin-1 supplement
+  // (160-255) which covers áéíóúñÁÉÍÓÚÑ¿¡, plus em-dash and a few extras.
+  // Without this, LoadFontEx defaults to ASCII-only and Spanish characters
+  // render as blank/question marks.
+  static const int *getCodepoints(int *outCount) {
+    static int cps[256];
+    int n = 0;
+    for (int c = 32; c <= 126; c++) cps[n++] = c;       // ASCII
+    for (int c = 160; c <= 255; c++) cps[n++] = c;      // Latin-1 supplement
+    cps[n++] = 0x2014;                                  // em dash —
+    cps[n++] = 0x2013;                                  // en dash –
+    cps[n++] = 0x2018; cps[n++] = 0x2019;               // ' '
+    cps[n++] = 0x201C; cps[n++] = 0x201D;               // " "
+    cps[n++] = 0x2026;                                  // …
+    *outCount = n;
+    return cps;
+  }
+
+  // Path to the active UI font (single source of truth)
+  static const char *uiFontPath() {
+    return "assets/fonts/VT323-Regular.ttf";
+  }
+
   // Load a font from file (cached). fontSize = base size for SDF quality.
   Font getFont(const std::string &path, int fontSize = 32) {
     std::string key = path + ":" + std::to_string(fontSize);
     if (fonts.find(key) == fonts.end()) {
-      fonts[key] = LoadFontEx(path.c_str(), fontSize, nullptr, 0);
+      int n = 0;
+      const int *cps = getCodepoints(&n);
+      fonts[key] = LoadFontEx(path.c_str(), fontSize, (int *)cps, n);
       SetTextureFilter(fonts[key].texture, TEXTURE_FILTER_POINT);
     }
     return fonts[key];
@@ -50,21 +75,24 @@ public:
   // Quick access to the game's main fonts (call after init)
   Font &fontHUD() {
     if (!hud.baseSize) {
-      hud = LoadFontEx("assets/fonts/PressStart2P-Regular.ttf", 16, nullptr, 0);
+      int n = 0; const int *cps = getCodepoints(&n);
+      hud = LoadFontEx(uiFontPath(), 32, (int *)cps, n);
       SetTextureFilter(hud.texture, TEXTURE_FILTER_POINT);
     }
     return hud;
   }
   Font &fontTitle() {
     if (!title.baseSize) {
-      title = LoadFontEx("assets/fonts/PressStart2P-Regular.ttf", 32, nullptr, 0);
+      int n = 0; const int *cps = getCodepoints(&n);
+      title = LoadFontEx(uiFontPath(), 48, (int *)cps, n);
       SetTextureFilter(title.texture, TEXTURE_FILTER_POINT);
     }
     return title;
   }
   Font &fontBig() {
     if (!big.baseSize) {
-      big = LoadFontEx("assets/fonts/PressStart2P-Regular.ttf", 48, nullptr, 0);
+      int n = 0; const int *cps = getCodepoints(&n);
+      big = LoadFontEx(uiFontPath(), 64, (int *)cps, n);
       SetTextureFilter(big.texture, TEXTURE_FILTER_POINT);
     }
     return big;

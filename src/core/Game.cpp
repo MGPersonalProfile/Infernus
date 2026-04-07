@@ -528,6 +528,9 @@ void Game::update(float deltaTime) {
   }
   if (transitionPhase == 1) return; // Block input during fade-out
 
+  // Global debug toggle (F3)
+  if (IsKeyPressed(KEY_F3)) showDebug = !showDebug;
+
   switch (state) {
   case GameState::MAIN_MENU:
     if (IsKeyPressed(KEY_ENTER)) {
@@ -984,7 +987,7 @@ void Game::render() {
 
   // Screen effects overlay (vignette, flash, fade)
   screenEffects.render(screenWidth, screenHeight);
-  drawDebugOverlay();
+  if (showDebug && state == GameState::PLAYING) drawDebugOverlay();
 
   EndDrawing();
 }

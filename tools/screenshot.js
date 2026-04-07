@@ -18,7 +18,11 @@ const puppeteer = require('puppeteer-core');
 
   // Wait for canvas to render
   await page.waitForSelector('canvas', { timeout: 10000 });
-  await new Promise(r => setTimeout(r, 4000)); // Let WASM init + render
+  await new Promise(r => setTimeout(r, 5000)); // Let WASM init + render
+
+  // Click canvas to ensure focus
+  await page.click('canvas');
+  await new Promise(r => setTimeout(r, 500));
 
   // Screenshot 1: Main menu
   await page.screenshot({ path: 'recovery_frames/wasm_menu.png', fullPage: false });
@@ -26,13 +30,13 @@ const puppeteer = require('puppeteer-core');
 
   // Press Enter to go to character select
   await page.keyboard.press('Enter');
-  await new Promise(r => setTimeout(r, 2000));
+  await new Promise(r => setTimeout(r, 2500));
   await page.screenshot({ path: 'recovery_frames/wasm_charselect.png', fullPage: false });
   console.log('Screenshot 2: Character select saved');
 
-  // Press Enter to start game
+  // Press Enter to start game (longer fade so wait more)
   await page.keyboard.press('Enter');
-  await new Promise(r => setTimeout(r, 3000));
+  await new Promise(r => setTimeout(r, 5000));
   await page.screenshot({ path: 'recovery_frames/wasm_gameplay.png', fullPage: false });
   console.log('Screenshot 3: Gameplay saved');
 

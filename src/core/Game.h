@@ -115,6 +115,9 @@ private:
   bool screenShakeEnabled = true;
   bool damageNumbersEnabled = true;
 
+  // Debug overlay (F3 in PLAYING)
+  bool showDebug = false;
+
   // Inventory
   int inventorySelectedSlot = 0;
 

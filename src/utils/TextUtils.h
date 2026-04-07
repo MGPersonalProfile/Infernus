@@ -2,25 +2,33 @@
 #include "../core/ResourceManager.h"
 #include "raylib.h"
 #include <cmath>
+#include <string>
 
-// Game-wide text rendering using PressStart2P pixel font.
+// Game-wide text rendering using a pixel font (currently VT323).
 // All game UI text goes through here for consistent styling.
+//
+// SCALE: VT323 chars are ~50% the width of PressStart2P at the same point
+// size. We multiply requested sizes by FONT_SCALE so existing call sites
+// (which were tuned for PressStart2P widths) keep similar visual weight
+// and don't need to change. Adjust this single constant to tune.
 
 namespace TextUtils {
 
-// Spacing: 1px fixed. PressStart2P is monospace and handles its own glyph width.
 constexpr float SPACING = 1.0f;
+constexpr float FONT_SCALE = 1.6f;
+
+inline float scaled(int fontSize) { return (float)fontSize * FONT_SCALE; }
 
 // Draw text with the pixel font.
 inline void draw(const char *text, int x, int y, int fontSize, Color color) {
   Font &font = ResourceManager::getInstance().fontHUD();
-  DrawTextEx(font, text, {(float)x, (float)y}, (float)fontSize, SPACING, color);
+  DrawTextEx(font, text, {(float)x, (float)y}, scaled(fontSize), SPACING, color);
 }
 
 // Measure text width with the pixel font.
 inline int measure(const char *text, int fontSize) {
   Font &font = ResourceManager::getInstance().fontHUD();
-  Vector2 size = MeasureTextEx(font, text, (float)fontSize, SPACING);
+  Vector2 size = MeasureTextEx(font, text, scaled(fontSize), SPACING);
   return (int)std::ceil(size.x);
 }
 

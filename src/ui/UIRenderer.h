@@ -6,6 +6,7 @@
 #include "../systems/SynergySystem.h"
 #include "../utils/TextUtils.h"
 #include "raylib.h"
+#include <string>
 
 // Centralized UI drawing utilities
 class UIRenderer {
@@ -100,15 +101,17 @@ public:
 
   // Draw synergy indicators
   static void drawSynergyBar(const SynergySystem &synergySystem, int x,
-                              int y) {
+                              int y, int maxWidth = 180) {
     auto &states = synergySystem.getStates();
     auto &defs = synergySystem.getDefs();
 
+    int textBudget = maxWidth - 12; // box + margin
     for (int i = 0; i < (int)states.size(); i++) {
       Color col = states[i].active ? Color{100, 255, 100, 200}
                                    : Color{60, 60, 60, 100};
-      DrawRectangle(x, y + i * 16, 8, 12, col);
-      TextUtils::draw(defs[i].name.c_str(), x + 12, y + i * 16 - 1, 12,
+      DrawRectangle(x, y + i * 14, 8, 10, col);
+      std::string label = TextUtils::truncate(defs[i].name, 10, textBudget);
+      TextUtils::draw(label.c_str(), x + 12, y + i * 14 - 1, 10,
                states[i].active ? Color{200, 255, 200, 255}
                                 : Color{80, 80, 80, 150});
     }
