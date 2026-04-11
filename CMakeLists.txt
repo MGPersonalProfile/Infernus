@@ -75,6 +75,7 @@ add_executable(test_combat
     tests/test_combat.cpp
     src/core/ECS.cpp
     src/systems/HealthSystem.cpp
+    src/graphics/PixelArtGenerator.cpp
 )
 target_include_directories(test_combat PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src

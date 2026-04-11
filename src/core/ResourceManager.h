@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include <string>
 #include <unordered_map>
+#include "../graphics/PixelArtGenerator.h"
 
 class ResourceManager {
 public:
@@ -16,7 +17,33 @@ public:
   // Load a texture from a file path (cached)
   Texture2D getTexture(const std::string &path) {
     if (textures.find(path) == textures.end()) {
-      textures[path] = LoadTexture(path.c_str());
+      if (path == "assets/sprites/player/warrior_idle.png") {
+        textures[path] = PixelArtGenerator::getWarrior();
+      } else if (path == "assets/sprites/player/rogue_idle.png") {
+        textures[path] = PixelArtGenerator::getRogue();
+      } else if (path == "assets/sprites/player/knight_idle.png") {
+        textures[path] = PixelArtGenerator::getKnight();
+      } else if (path == "assets/sprites/bosses/minotaur_idle.png") {
+        textures[path] = PixelArtGenerator::getMinotaur();
+      } else if (path == "assets/sprites/enemies/demon_idle.png") {
+        textures[path] = PixelArtGenerator::getDemon();
+      } else if (path == "assets/sprites/enemies/lancer_idle.png") {
+        textures[path] = PixelArtGenerator::getLancer();
+      } else if (path == "assets/sprites/enemies/brute_idle.png") {
+        textures[path] = PixelArtGenerator::getBrute();
+      } else if (path == "assets/sprites/enemies/assassin_idle.png") {
+        textures[path] = PixelArtGenerator::getAssassin();
+      } else if (path == "assets/sprites/enemies/bomber_idle.png") {
+        textures[path] = PixelArtGenerator::getBomber();
+      } else if (path == "assets/sprites/tiles/floor.png") {
+        textures[path] = PixelArtGenerator::getFloor();
+      } else if (path == "assets/sprites/tiles/decor_bones.png") {
+        textures[path] = PixelArtGenerator::getDecor();
+      } else if (path == "assets/sprites/tiles/decor_rune.png") {
+        textures[path] = PixelArtGenerator::getDecor(); // fallback
+      } else {
+        textures[path] = LoadTexture(path.c_str());
+      }
     }
     return textures[path];
   }
