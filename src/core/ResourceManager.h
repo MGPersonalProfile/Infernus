@@ -19,22 +19,6 @@ public:
     if (textures.find(path) == textures.end()) {
       if (path == "assets/sprites/player/warrior_idle.png") {
         textures[path] = PixelArtGenerator::getWarrior();
-      } else if (path == "assets/sprites/player/rogue_idle.png") {
-        textures[path] = PixelArtGenerator::getRogue();
-      } else if (path == "assets/sprites/player/knight_idle.png") {
-        textures[path] = PixelArtGenerator::getKnight();
-      } else if (path == "assets/sprites/bosses/minotaur_idle.png") {
-        textures[path] = PixelArtGenerator::getMinotaur();
-      } else if (path == "assets/sprites/enemies/demon_idle.png") {
-        textures[path] = PixelArtGenerator::getDemon();
-      } else if (path == "assets/sprites/enemies/lancer_idle.png") {
-        textures[path] = PixelArtGenerator::getLancer();
-      } else if (path == "assets/sprites/enemies/brute_idle.png") {
-        textures[path] = PixelArtGenerator::getBrute();
-      } else if (path == "assets/sprites/enemies/assassin_idle.png") {
-        textures[path] = PixelArtGenerator::getAssassin();
-      } else if (path == "assets/sprites/enemies/bomber_idle.png") {
-        textures[path] = PixelArtGenerator::getBomber();
       } else if (path == "assets/sprites/tiles/floor.png") {
         textures[path] = PixelArtGenerator::getFloor();
       } else if (path == "assets/sprites/tiles/decor_bones.png") {
@@ -42,7 +26,11 @@ public:
       } else if (path == "assets/sprites/tiles/decor_rune.png") {
         textures[path] = PixelArtGenerator::getDecor(); // fallback
       } else {
+        // Real PNG on disk — load it and force nearest-neighbor filter so
+        // Antigravity's pixel art doesn't get bilinear-blurred by Raylib's
+        // default TEXTURE_FILTER_BILINEAR.
         textures[path] = LoadTexture(path.c_str());
+        SetTextureFilter(textures[path], TEXTURE_FILTER_POINT);
       }
     }
     return textures[path];
