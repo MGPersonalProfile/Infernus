@@ -1,4 +1,5 @@
 #include "TrapSystem.h"
+#include "../debug/Profiler.h"
 #include "../components/Animation.h"
 #include "../components/Collider.h"
 #include "../components/Health.h"
@@ -10,6 +11,7 @@
 #include "raylib.h"
 
 void TrapSystem::update(Registry &registry, float deltaTime) {
+  INFERNUS_ZONE_N("TrapSystem");
   auto traps = registry.view<Trap, Transform2D, Collider>();
 
   for (Entity trapEntity : traps) {

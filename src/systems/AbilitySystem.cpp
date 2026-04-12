@@ -1,4 +1,5 @@
 #include "AbilitySystem.h"
+#include "../debug/Profiler.h"
 #include "../components/Health.h"
 #include "../components/Stamina.h"
 #include <algorithm>
@@ -74,6 +75,7 @@ void AbilitySystem::loadAbilities(const std::string &path) {
 }
 
 void AbilitySystem::update(Registry &registry, float deltaTime) {
+  INFERNUS_ZONE_N("AbilitySystem");
   auto holders = registry.view<AbilityHolder>();
   for (Entity e : holders) {
     auto &holder = registry.getComponent<AbilityHolder>(e);

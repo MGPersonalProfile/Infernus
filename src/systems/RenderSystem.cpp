@@ -1,4 +1,5 @@
 #include "RenderSystem.h"
+#include "../debug/Profiler.h"
 #include "../components/Combat.h"
 #include "../components/Health.h"
 #include "../components/Sprite.h"
@@ -12,6 +13,7 @@
 #include <vector>
 
 void RenderSystem::update(Registry &registry) {
+  INFERNUS_ZONE_N("RenderSystem");
   auto entities = registry.view<Transform2D, Sprite>();
 
   // Sort by layer before rendering

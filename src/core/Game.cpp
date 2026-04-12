@@ -1,4 +1,8 @@
 #include "Game.h"
+#include "../debug/DebugPanel.h"
+#include "../debug/Profiler.h"
+#include "../scripting/LuaEngine.h"
+#include "../systems/PartikelEmitters.h"
 #include "../components/AIBehavior.h"
 #include "../components/Animation.h"
 #include "../components/BossPhase.h"
@@ -23,6 +27,7 @@
 #endif
 
 // Pixel font is used via TextUtils::draw / TextUtils::measure throughout.
+static int infoMenuTab = 0;
 
 Game::Game()
     : screenWidth(Constants::SCREEN_WIDTH),
@@ -35,6 +40,9 @@ void Game::init() {
   InitWindow(screenWidth, screenHeight, "INFERNUS");
   SetExitKey(0); // Disable ESC auto-close — we handle ESC ourselves
   SetTargetFPS(Constants::TARGET_FPS);
+  DebugPanel::setup();
+  LuaEngine::setup();
+  PartikelEmitters::init();
   inputManager.init();
   cameraSystem.init(screenWidth, screenHeight);
   AudioManager::getInstance().init();
@@ -56,6 +64,14 @@ void Game::init() {
   res.getTexture("assets/art/portrait_infernal_knight.png");
   res.getTexture("assets/art/portrait_soul_archer.png");
   res.getTexture("assets/art/portrait_pit_fiend.png");
+
+  // Post-Processing Initializations
+  renderTarget = LoadRenderTexture(screenWidth, screenHeight);
+  SetTextureFilter(renderTarget.texture, TEXTURE_FILTER_BILINEAR);
+  crtVignetteShader = LoadShader(0, "src/shaders/CRT_Vignette.fs");
+  renderSizeLoc = GetShaderLocation(crtVignetteShader, "renderSize");
+  float sz[2] = { (float)screenWidth, (float)screenHeight };
+  SetShaderValue(crtVignetteShader, renderSizeLoc, sz, SHADER_UNIFORM_VEC2);
 }
 
 void Game::spawnRoom() {
@@ -276,15 +292,24 @@ void Game::handlePlayerInput() {
                                         Color{100, 120, 180, 0}, 1.0f, 0.5f);
       }
 
-      // Dash damage: spawn hitbox at player position
+      // Dash damage: cover the whole dash path with a massive expanding hitbox
       if (registry.hasComponent<PlayerStats>(playerEntity) &&
           registry.getComponent<PlayerStats>(playerEntity).dashDamage) {
         int dashDmg = combat.baseDamage;
+        float fx = velocity.vx;
+        float fy = velocity.vy;
+        float len = sqrtf(fx * fx + fy * fy);
+        if (len > 0.1f) { fx /= len; fy /= len; } else { fx = 0; fy = 0; }
+        
+        float dashDistance = Constants::DASH_SPEED * Constants::DASH_IFRAMES;
         Entity dashHit = registry.createEntity();
-        registry.addComponent<Transform2D>(dashHit, pt.x - 20.0f, pt.y - 20.0f);
-        registry.addComponent<Collider>(dashHit, 40.0f, 40.0f);
+        registry.addComponent<Transform2D>(dashHit, pt.x + (fx * dashDistance)/2.0f - dashDistance/2.0f, pt.y + (fy * dashDistance)/2.0f - dashDistance/2.0f);
+        
+        float hw = std::abs(fx) > 0.5f ? dashDistance + 40.0f : 40.0f;
+        float hh = std::abs(fy) > 0.5f ? dashDistance + 40.0f : 40.0f;
+        registry.addComponent<Collider>(dashHit, hw, hh);
         registry.addComponent<Combat>(dashHit, dashDmg, 150.0f, playerEntity);
-        registry.addComponent<Lifetime>(dashHit, 0.2f);
+        registry.addComponent<Lifetime>(dashHit, Constants::DASH_IFRAMES);
       }
     }
   }
@@ -296,6 +321,55 @@ void Game::handlePlayerInput() {
     stamina.currentStamina -= 30.0f;
     stamina.cooldownTimer = stamina.regenDelay;
     executeSpecialAttack();
+  }
+  // --- Procedural Animation Synchronization ---
+  if (registry.hasComponent<Animation>(playerEntity) && registry.hasComponent<Combat>(playerEntity)) {
+      auto& anim = registry.getComponent<Animation>(playerEntity);
+      
+      float dashInvul = 0.0f;
+      if (registry.hasComponent<Health>(playerEntity)) {
+          dashInvul = registry.getComponent<Health>(playerEntity).invulnerabilityTimer;
+      }
+      
+      if (dashInvul > 0.0f) {
+           if (anim.startY != 168.0f) { // Row 3: 56 * 3 (Dash/Ulti)
+              anim.startY = 168.0f;
+              anim.frames = 2;
+              anim.currentFrame = 0;
+              anim.frameSpeed = 0.05f;
+              anim.loop = false;
+              anim.finished = false;
+          }
+      } else if (combat.currentState == AttackState::WINDUP || combat.currentState == AttackState::ACTIVE) {
+          if (anim.startY != 112.0f) { // Row 2: 56 * 2 (Attack)
+              anim.startY = 112.0f;
+              anim.frames = 3;
+              anim.currentFrame = 0;
+              anim.frameSpeed = 0.08f;
+              anim.loop = false;
+              anim.finished = false;
+          }
+      } else if (velocity.vx != 0.0f || velocity.vy != 0.0f) {
+          if (anim.startY != 56.0f) { // Row 1: 56 * 1 (Walk)
+              // Only interrupt if not attacking, or attack finished
+              anim.startY = 56.0f;
+              anim.frames = 6;
+              anim.currentFrame = 0;
+              anim.frameSpeed = 0.08f;
+              anim.loop = true;
+              anim.finished = false;
+          }
+      } else {
+          // Idle
+          if (anim.startY != 0.0f && (anim.loop || anim.finished)) { // Row 0: 0 (Idle)
+              anim.startY = 0.0f;
+              anim.frames = 2;
+              anim.currentFrame = 0;
+              anim.frameSpeed = 0.4f;
+              anim.loop = true;
+              anim.finished = false;
+          }
+      }
   }
 }
 
@@ -358,17 +432,15 @@ void Game::executeSpecialAttack() {
 
     float teleportDist = 120.0f;
 
-    // Spawn damage hitboxes along the path
-    for (int i = 1; i <= 3; i++) {
-      float d = teleportDist * ((float)i / 3.0f);
-      Entity hb = registry.createEntity();
-      registry.addComponent<Transform2D>(hb, pt.x + fx * d - 15,
-                                         pt.y + fy * d - 15);
-      registry.addComponent<Collider>(hb, 30.0f, 30.0f);
-      registry.addComponent<Combat>(hb, combat.baseDamage * 3,
-                                    100.0f, playerEntity);
-      registry.addComponent<Lifetime>(hb, 0.15f);
-    }
+    // Spawn a large damage line covering the teleport path
+    Entity hb = registry.createEntity();
+    registry.addComponent<Transform2D>(hb, pt.x + (fx * teleportDist)/2.0f - teleportDist/2.0f,
+                                       pt.y + (fy * teleportDist)/2.0f - teleportDist/2.0f);
+    float hw = std::abs(fx) > 0.5f ? teleportDist + 60.0f : 60.0f;
+    float hh = std::abs(fy) > 0.5f ? teleportDist + 60.0f : 60.0f;
+    registry.addComponent<Collider>(hb, hw, hh);
+    registry.addComponent<Combat>(hb, combat.baseDamage * 3, 100.0f, playerEntity);
+    registry.addComponent<Lifetime>(hb, 0.2f);
 
     // Teleport player
     pt.x += fx * teleportDist;
@@ -511,7 +583,13 @@ void Game::transitionTo(GameState target, float duration) {
 }
 
 void Game::update(float deltaTime) {
+  INFERNUS_ZONE_N("Game::update");
   AudioManager::getInstance().update();
+  DebugPanel::handleInput();
+  LuaEngine::handleInput();
+
+  // Apply debug time scale (also affects fades, which feels right for slo-mo tests)
+  deltaTime *= DebugPanel::tunables().timeScale;
 
   // Update fade timer globally (so transitions work in ALL states)
   screenEffects.updateFade(deltaTime);
@@ -771,8 +849,15 @@ void Game::update(float deltaTime) {
     return;
 
   case GameState::INFO:
-    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_TAB))
+    if (IsKeyPressed(KEY_ESCAPE) || 
+        inputManager.isActionPressed(InputAction::OPEN_INFO) || 
+        inputManager.isActionPressed(InputAction::OPEN_INVENTORY) || 
+        inputManager.isActionPressed(InputAction::OPEN_ABILITIES))
       state = GameState::PLAYING;
+    
+    // Allow swapping tabs inside info menu
+    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) infoMenuTab = (infoMenuTab + 1) % 3;
+    if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) infoMenuTab = (infoMenuTab + 2) % 3;
     return;
 
   case GameState::ITEM_SWAP: {
@@ -834,6 +919,12 @@ void Game::update(float deltaTime) {
   }
   if (inputManager.isActionPressed(InputAction::OPEN_INFO)) {
     state = GameState::INFO;
+    infoMenuTab = 0;
+    return;
+  }
+  if (inputManager.isActionPressed(InputAction::OPEN_ABILITIES)) {
+    state = GameState::INFO;
+    infoMenuTab = 1;
     return;
   }
 
@@ -875,6 +966,7 @@ void Game::update(float deltaTime) {
 
   UIRenderer::updateDamageNumbers(registry, deltaTime);
   particleSystem.update(registry, deltaTime);
+  PartikelEmitters::update(deltaTime);
   animationSystem.update(registry, deltaTime);
   cameraSystem.update(registry, playerEntity, deltaTime);
   updateAtmosphericParticles(deltaTime);
@@ -886,7 +978,8 @@ void Game::update(float deltaTime) {
 // Render
 // =============================================================================
 void Game::render() {
-  BeginDrawing();
+  INFERNUS_ZONE_N("Game::render");
+  BeginTextureMode(renderTarget);
   ClearBackground(Color{10, 10, 15, 255});
 
   switch (state) {
@@ -942,39 +1035,11 @@ void Game::render() {
     break;
   case GameState::PLAYING:
   default: {
-    // Parallax dungeon background (screen-space, drawn BEFORE world geometry)
-    {
-      Texture2D parallaxTex = ResourceManager::getInstance().getTexture(
-          "assets/art/parallax_dungeon.png");
-      if (parallaxTex.id > 0) {
-        float scaleX = (float)screenWidth / parallaxTex.width;
-        float scaleY = (float)screenHeight / parallaxTex.height;
-        float scale = std::max(scaleX, scaleY);
-        float drawW = parallaxTex.width * scale;
-        float drawH = parallaxTex.height * scale;
-        // Parallax offset based on camera position
-        float offsetX = -fmodf(cameraSystem.camera.target.x * 0.15f, drawW);
-        float offsetY = -fmodf(cameraSystem.camera.target.y * 0.1f, drawH);
-        DrawTexturePro(
-            parallaxTex,
-            {0, 0, (float)parallaxTex.width, (float)parallaxTex.height},
-            {offsetX, offsetY, drawW, drawH}, {0, 0}, 0.0f,
-            Color{180, 160, 180, 255});
-        // Tile horizontally if needed
-        if (offsetX + drawW < screenWidth) {
-          DrawTexturePro(
-              parallaxTex,
-              {0, 0, (float)parallaxTex.width, (float)parallaxTex.height},
-              {offsetX + drawW, offsetY, drawW, drawH}, {0, 0}, 0.0f,
-              Color{180, 160, 180, 255});
-        }
-        // Dark overlay so tiles are still readable on top
-        DrawRectangle(0, 0, screenWidth, screenHeight, Color{0, 0, 0, 100});
-      }
-    }
+
     BeginMode2D(cameraSystem.camera);
     renderSystem.update(registry);
     renderAtmosphericParticles();
+    PartikelEmitters::draw();
     if (damageNumbersEnabled) UIRenderer::renderDamageNumbers(registry);
     EndMode2D();
     drawHUD();
@@ -985,9 +1050,30 @@ void Game::render() {
   }
   }
 
-  // Screen effects overlay (vignette, flash, fade)
+  // Screen effects overlay (fade)
   screenEffects.render(screenWidth, screenHeight);
   if (showDebug && state == GameState::PLAYING) drawDebugOverlay();
+
+  EndTextureMode();
+
+  // === DUMP RENDER TARGET TO SCREEN WITH SHADER ===
+  BeginDrawing();
+  ClearBackground(BLACK);
+  
+  // Update Shader Uniforms (optional dynamic time injection, etc.)
+  // float time = GetTime();
+  // SetShaderValue(crtVignetteShader, GetShaderLocation(crtVignetteShader, "time"), &time, SHADER_UNIFORM_FLOAT);
+  
+  BeginShaderMode(crtVignetteShader);
+  // Note: Y is flipped in OpenGL framebuffers!
+  DrawTextureRec(renderTarget.texture,
+                 Rectangle{ 0, 0, (float)renderTarget.texture.width, -(float)renderTarget.texture.height },
+                 Vector2{ 0, 0 }, WHITE);
+  EndShaderMode();
+
+  // Debug panel (ImGui) — drawn on top of the shader output, inside BeginDrawing/EndDrawing.
+  // Compiles to a no-op on WASM builds (no INFERNUS_IMGUI define).
+  DebugPanel::draw(registry);
 
   EndDrawing();
 }
@@ -1015,8 +1101,8 @@ void Game::drawHUD() {
     DrawRectangleGradientV(20, 31, hpFill, 11, Color{140, 20, 15, 255},
                            Color{100, 10, 10, 255});
     DrawRectangleLinesEx({20, 20, 300, 22}, 1.0f, Color{180, 150, 80, 200});
-    TextUtils::draw(TextFormat("HP %d/%d", health.currentHP, health.maxHP), 25, 24, 12,
-             WHITE);
+    TextUtils::drawOutlined(TextFormat("HP %d/%d", health.currentHP, health.maxHP), 25, 23, 12,
+             WHITE, 2);
 
     // Stamina Bar (dark bg, green fill, gold border)
     float stRatio = stam.currentStamina / stam.maxStamina;
@@ -1031,8 +1117,8 @@ void Game::drawHUD() {
 
   // Special cooldown — only when on cooldown so the screen stays clean.
   if (specialCooldownTimer > 0.0f) {
-    TextUtils::draw(TextFormat("L: %.1fs", specialCooldownTimer), 20, 68, 10,
-             Color{180, 80, 80, 255});
+    TextUtils::drawOutlined(TextFormat("L: %.1fs", specialCooldownTimer), 20, 68, 10,
+             Color{220, 100, 100, 255}, 1);
   }
 }
 
@@ -1069,10 +1155,7 @@ void Game::drawBossHealthBar() {
 
   const char *name = bp.bossName.c_str();
   int nameW = TextUtils::measure(name, 14);
-  TextUtils::draw(name, (screenWidth - nameW) / 2 + 1, barY - 22, 14,
-           Color{0, 0, 0, 180});
-  TextUtils::draw(name, (screenWidth - nameW) / 2, barY - 23, 14,
-           Color{230, 190, 100, 255});
+  TextUtils::drawCenteredOutlined(name, barY - 25, 14, Color{230, 190, 100, 255}, screenWidth, 2, Color{0, 0, 0, 255});
 
   TextUtils::draw(TextFormat("Fase %d/%d", bp.currentPhase + 1, bp.totalPhases),
            barX + barW + 10, barY + 5, 10, Color{200, 200, 200, 255});
@@ -1102,21 +1185,21 @@ void Game::drawMainMenu() {
   DrawRectangleGradientV(0, screenHeight * 3 / 4, screenWidth, screenHeight / 4,
                          Color{0, 0, 0, 0}, Color{0, 0, 0, 220});
 
-  // Title with shadow
+  // Title with shadow/outline
   int ty = screenHeight / 4 - 20;
-  TextUtils::drawCenteredShadow("INFERNUS", ty, 48,
-           Color{200, 40, 20, 255}, screenWidth);
+  TextUtils::drawCenteredOutlined("INFERNUS", ty, 48,
+           Color{200, 40, 20, 255}, screenWidth, 3, Color{0,0,0,255});
 
   // Subtitle
-  TextUtils::drawCentered("\"Abandonad toda esperanza\"",
-           ty + 60, 10, Color{180, 150, 100, 255}, screenWidth);
+  TextUtils::drawCenteredOutlined("\"Abandonad toda esperanza\"",
+           ty + 64, 10, Color{180, 150, 100, 255}, screenWidth, 1);
 
   // Menu items with glow effect
   int menuY = screenHeight / 2 + 40;
   float pulse = 0.5f + 0.5f * sinf((float)GetTime() * 3.0f);
   unsigned char alpha = (unsigned char)(180 + 75 * pulse);
-  TextUtils::drawCenteredShadow("[ENTER] Comenzar", menuY, 18,
-           Color{255, 220, 150, alpha}, screenWidth);
+  TextUtils::drawCenteredOutlined("[ENTER] Comenzar", menuY, 18,
+           Color{255, 220, 150, alpha}, screenWidth, 2);
   TextUtils::drawCentered("[ESC] Opciones", menuY + 40, 14,
            Color{140, 130, 120, 255}, screenWidth);
   TextUtils::drawCentered("[ALT+F4] Salir", menuY + 70, 10,
@@ -1135,7 +1218,7 @@ void Game::drawPauseMenu() {
   drawUIPanel(px, py, panelW, panelH, Color{15, 15, 25, 240},
               Color{180, 160, 100, 255});
 
-  TextUtils::drawCenteredShadow("PAUSA", py + 25, 28, Color{220, 200, 150, 255}, screenWidth);
+  TextUtils::drawCenteredOutlined("PAUSA", py + 35, 28, Color{220, 200, 150, 255}, screenWidth, 2);
 
   int itemY = py + 80;
   int itemH = 50;
@@ -1158,7 +1241,7 @@ void Game::drawPauseMenu() {
     Color col = sel ? Color{255, 220, 140, alpha} : Color{160, 160, 160, alpha};
     int fontSize = sel ? 14 : 12;
 
-    TextUtils::drawCentered(items[i], y + 4, fontSize, col, screenWidth);
+    TextUtils::drawCenteredOutlined(items[i], y + 4, fontSize, col, screenWidth, 1);
 
     // Selection arrow
     if (sel) {
@@ -1174,16 +1257,16 @@ void Game::drawPauseMenu() {
 void Game::drawOptions() {
   DrawRectangle(0, 0, screenWidth, screenHeight, Color{5, 5, 15, 255});
 
-  int mainW = 650, mainH = 520;
+  int mainW = 650, mainH = 550;
   int mainX = (screenWidth - mainW) / 2, mainY = 20;
   drawUIPanel(mainX, mainY, mainW, mainH, Color{12, 12, 22, 230},
               Color{180, 140, 60, 255});
 
-  TextUtils::drawCenteredShadow("OPCIONES", 40, 24, Color{220, 180, 100, 255}, screenWidth);
+  TextUtils::drawCenteredOutlined("OPCIONES", mainY + 55, 24, Color{220, 180, 100, 255}, screenWidth, 2);
 
   auto &audio = AudioManager::getInstance();
   int cx = screenWidth / 2;
-  int startY = 85;
+  int startY = mainY + 110;
   int rowH = 42;
 
   // Options: SFX, Music, Fullscreen, ScreenShake, DamageNumbers, Back
@@ -1197,8 +1280,8 @@ void Game::drawOptions() {
 
     // Highlight bar
     if (sel) {
-      DrawRectangle(cx - 260, y - 5, 520, 34, Color{30, 30, 50, 255});
-      DrawRectangleLinesEx({(float)(cx - 260), (float)(y - 5), 520, 34}, 1.0f,
+      DrawRectangle(cx - 230, y - 5, 460, 34, Color{30, 30, 50, 255});
+      DrawRectangleLinesEx({(float)(cx - 230), (float)(y - 5), 460, 34}, 1.0f,
                            Color{220, 180, 100, 120});
     }
 
@@ -1206,10 +1289,10 @@ void Game::drawOptions() {
       // Volume sliders
       const char *label = (i == 0) ? "Volumen SFX" : "Volumen Musica";
       float vol = (i == 0) ? audio.getSFXVolume() : audio.getMusicVolume();
-      TextUtils::draw(label, cx - 240, y + 5, 10, labelCol);
+      TextUtils::draw(label, cx - 210, y + 5, 10, labelCol);
 
-      int barX = cx + 40;
-      int barW = 140;
+      int barX = cx + 50;
+      int barW = 120;
       int barY = y + 7;
       DrawRectangle(barX, barY, barW, 12, Color{40, 40, 50, 255});
       int fillW = (int)(vol * barW);
@@ -1219,18 +1302,18 @@ void Game::drawOptions() {
                barX + barW + 10, y + 5, 10, valCol);
       if (sel) {
         TextUtils::draw("<", barX - 14, y + 5, 10, Color{220, 180, 100, 255});
-        TextUtils::draw(">", barX + barW + 55, y + 5, 10, Color{220, 180, 100, 255});
+        TextUtils::draw(">", barX + barW + 45, y + 5, 10, Color{220, 180, 100, 255});
       }
     } else if (i == 2) {
-      TextUtils::draw("Pantalla Completa", cx - 240, y + 5, 10, labelCol);
+      TextUtils::draw("Pantalla Completa", cx - 210, y + 5, 10, labelCol);
       const char *val = IsWindowFullscreen() ? "SI" : "NO";
       TextUtils::draw(val, cx + 100, y + 5, 10, valCol);
     } else if (i == 3) {
-      TextUtils::draw("Screen Shake", cx - 240, y + 5, 10, labelCol);
+      TextUtils::draw("Screen Shake", cx - 210, y + 5, 10, labelCol);
       const char *val = screenShakeEnabled ? "SI" : "NO";
       TextUtils::draw(val, cx + 100, y + 5, 10, val[0] == 'S' ? Color{100, 255, 100, 255} : Color{255, 80, 80, 255});
     } else if (i == 4) {
-      TextUtils::draw("Numeros de Dano", cx - 240, y + 5, 10, labelCol);
+      TextUtils::draw("Numeros de Dano", cx - 210, y + 5, 10, labelCol);
       const char *val = damageNumbersEnabled ? "SI" : "NO";
       TextUtils::draw(val, cx + 100, y + 5, 10, val[0] == 'S' ? Color{100, 255, 100, 255} : Color{255, 80, 80, 255});
     } else {
@@ -1239,22 +1322,22 @@ void Game::drawOptions() {
   }
 
   // Keybinds reference
-  int kbY = startY + optionCount * rowH + 15;
-  DrawRectangle(cx - 260, kbY, 520, 1, Color{60, 50, 40, 200});
+  int kbY = startY + optionCount * rowH + 10;
+  DrawRectangle(cx - 230, kbY, 460, 1, Color{60, 50, 40, 200});
   TextUtils::drawCentered("CONTROLES", kbY + 8, 10, Color{180, 150, 100, 200}, screenWidth);
   int ky = kbY + 26;
   Color kc = Color{120, 120, 130, 200};
-  TextUtils::draw("WASD  Movimiento", cx - 220, ky, 8, kc);
-  TextUtils::draw("J     Ataque ligero", cx + 30, ky, 8, kc);
-  ky += 14;
-  TextUtils::draw("K     Ataque pesado", cx - 220, ky, 8, kc);
-  TextUtils::draw("L     Especial", cx + 30, ky, 8, kc);
-  ky += 14;
-  TextUtils::draw("SPACE Dash", cx - 220, ky, 8, kc);
-  TextUtils::draw("I     Inventario", cx + 30, ky, 8, kc);
-  ky += 14;
-  TextUtils::draw("TAB   Estadisticas", cx - 220, ky, 8, kc);
-  TextUtils::draw("H     Habilidades", cx + 30, ky, 8, kc);
+  TextUtils::draw("WASD  Movimiento", cx - 190, ky, 10, kc);
+  TextUtils::draw("J     Ataque ligero", cx + 30, ky, 10, kc);
+  ky += 16;
+  TextUtils::draw("K     Ataque pesado", cx - 190, ky, 10, kc);
+  TextUtils::draw("L     Especial", cx + 30, ky, 10, kc);
+  ky += 16;
+  TextUtils::draw("SPACE Dash", cx - 190, ky, 10, kc);
+  TextUtils::draw("I     Inventario", cx + 30, ky, 10, kc);
+  ky += 16;
+  TextUtils::draw("TAB   Estadisticas", cx - 190, ky, 10, kc);
+  TextUtils::draw("H     Habilidades", cx + 30, ky, 10, kc);
 
   TextUtils::drawCentered("[ESC] Volver", screenHeight - 30, 8,
            Color{80, 80, 80, 255}, screenWidth);
@@ -1276,8 +1359,8 @@ void Game::drawGameOver() {
   // Pulsing title
   float pulse = 0.6f + 0.4f * sinf((float)GetTime() * 2.0f);
   unsigned char titleAlpha = (unsigned char)(180 + 75 * pulse);
-  TextUtils::drawCenteredShadow("HAS MUERTO", screenHeight / 6, 36,
-           Color{200, 30, 20, titleAlpha}, screenWidth);
+  TextUtils::drawCenteredOutlined("HAS MUERTO", screenHeight / 6, 36,
+           Color{200, 30, 20, titleAlpha}, screenWidth, 3, Color{0, 0, 0, 255});
 
   // Decorative line
   int lineY = screenHeight / 6 + 50;
@@ -1291,8 +1374,8 @@ void Game::drawGameOver() {
   // Action buttons with visual focus
   float btnPulse = 0.5f + 0.5f * sinf((float)GetTime() * 3.5f);
   unsigned char enterAlpha = (unsigned char)(180 + 75 * btnPulse);
-  TextUtils::drawCenteredShadow("[ ENTER ] Reintentar", screenHeight - 85, 12,
-           Color{220, 180, 100, enterAlpha}, screenWidth);
+  TextUtils::drawCenteredOutlined("[ ENTER ] Reintentar", screenHeight - 85, 12,
+           Color{220, 180, 100, enterAlpha}, screenWidth, 2);
   TextUtils::drawCentered("[ ESC ] Menu Principal", screenHeight - 60, 10,
            Color{120, 110, 100, 200}, screenWidth);
 }
@@ -1313,8 +1396,8 @@ void Game::drawVictory() {
   // Pulsing golden title
   float pulse = 0.6f + 0.4f * sinf((float)GetTime() * 2.5f);
   unsigned char titleAlpha = (unsigned char)(200 + 55 * pulse);
-  TextUtils::drawCenteredShadow("VICTORIA", screenHeight / 8, 36,
-           Color{255, 210, 60, titleAlpha}, screenWidth);
+  TextUtils::drawCenteredOutlined("VICTORIA", screenHeight / 8, 36,
+           Color{255, 210, 60, titleAlpha}, screenWidth, 3, Color{0, 0, 0, 255});
 
   // Decorative gold lines
   int lineY = screenHeight / 8 + 50;
@@ -1331,8 +1414,8 @@ void Game::drawVictory() {
   // Pulsing button
   float btnPulse = 0.5f + 0.5f * sinf((float)GetTime() * 3.5f);
   unsigned char alpha = (unsigned char)(180 + 75 * btnPulse);
-  TextUtils::drawCenteredShadow("[ ENTER ] Menu Principal", screenHeight - 70, 12,
-           Color{255, 220, 140, alpha}, screenWidth);
+  TextUtils::drawCenteredOutlined("[ ENTER ] Menu Principal", screenHeight - 70, 12,
+           Color{255, 220, 140, alpha}, screenWidth, 2);
 }
 
 void Game::drawBossIntro() {
@@ -1364,8 +1447,8 @@ void Game::drawBossIntro() {
   if (registry.hasComponent<BossPhase>(bossEntity)) {
     auto &bp = registry.getComponent<BossPhase>(bossEntity);
     const char *name = bp.bossName.c_str();
-    TextUtils::drawCenteredShadow(name, screenHeight / 2 + 145, 28,
-             Color{220, 180, 100, 255}, screenWidth);
+    TextUtils::drawCenteredOutlined(name, screenHeight / 2 + 145, 28,
+             Color{220, 180, 100, 255}, screenWidth, 2);
   }
 
   float pulse = 0.5f + 0.5f * sinf((float)GetTime() * 2.5f);
@@ -1485,10 +1568,8 @@ void Game::drawCharacterSelect() {
     titleSize -= 2;
     tw = TextUtils::measure(title, titleSize);
   }
-  TextUtils::draw(title, (screenWidth - tw) / 2 + 2, screenHeight / 10 + 2, titleSize,
-           Color{0, 0, 0, 180});
-  TextUtils::draw(title, (screenWidth - tw) / 2, screenHeight / 10, titleSize,
-           Color{220, 180, 100, 255});
+  TextUtils::drawOutlined(title, (screenWidth - tw) / 2, screenHeight / 10, titleSize,
+           Color{220, 180, 100, 255}, 2);
 
   using json = nlohmann::json;
   std::ifstream file("assets/data/characters.json");
@@ -1514,7 +1595,7 @@ void Game::drawCharacterSelect() {
   }
   int startX = (screenWidth - totalW) / 2;
   int startY = screenHeight / 6;
-  int innerPad = 10; // Padding inside card
+  int innerPad = 32; // Padding inside card for majestic borders
 
   for (int i = 0; i < numChars; i++) {
     auto &c = chars[i];
@@ -1544,7 +1625,7 @@ void Game::drawCharacterSelect() {
       }
     }
 
-    int textY = cy + innerPad + 180 + 8; // right below portrait
+    int textY = cy + innerPad + 180 + 15; // right below portrait with extra margin
 
     // Name — centered, auto-shrink if too wide
     std::string name = c.value("name", "???");
@@ -1556,51 +1637,39 @@ void Game::drawCharacterSelect() {
              Color{0, 0, 0, 180});
     TextUtils::draw(name.c_str(), cx + (cardW - nw) / 2, textY, nameSize,
              selected ? Color{255, 230, 160, 255} : Color{180, 180, 180, 255});
-    textY += nameSize + 4;
+    textY += nameSize + 12;
 
     // Stats — 2 rows, colored values
     int statSize = 10;
     const char *statLine1 = TextFormat("HP:%d  DMG:%d",
         c.value("hp", 100), c.value("damage", 15));
-    const char *statLine2 = TextFormat("SPD:%.0f STA:%.0f",
+    const char *statLine2 = TextFormat("SPD:%.0f  STA:%.0f",
         c.value("speed", 250.0f), c.value("stamina", 100.0f));
     // Auto-shrink stats if needed
     int sfs = statSize;
     while (TextUtils::measure(statLine1, sfs) > contentW && sfs > 6) sfs--;
-    TextUtils::draw(statLine1, cx + innerPad, textY, sfs,
-             Color{120, 200, 120, 255});
+    
+    int st1W = TextUtils::measure(statLine1, sfs);
+    TextUtils::draw(statLine1, cx + (cardW - st1W) / 2, textY, sfs, Color{120, 200, 120, 255});
     textY += sfs + 3;
-    TextUtils::draw(statLine2, cx + innerPad, textY, sfs,
-             Color{120, 200, 120, 255});
-    textY += sfs + 5;
+    
+    int st2W = TextUtils::measure(statLine2, sfs);
+    TextUtils::draw(statLine2, cx + (cardW - st2W) / 2, textY, sfs, Color{120, 200, 120, 255});
+    textY += sfs + 14;
 
-    // Description — single line, truncate cleanly with "..."
+    // Description — dynamically wrapped
     int descSize = 8;
     std::string desc = c.value("description", "");
-    while (TextUtils::measure(desc.c_str(), descSize) > contentW && desc.size() > 4) {
-      desc.pop_back();
-    }
-    // If we truncated, trim trailing spaces and add ellipsis
-    if (desc.size() < c.value("description", std::string("")).size()) {
-      while (!desc.empty() && desc.back() == ' ') desc.pop_back();
-      desc += "...";
-    }
-    TextUtils::draw(desc.c_str(), cx + innerPad, textY, descSize,
-             Color{150, 150, 150, 255});
-    textY += descSize + 4;
+    textY = TextUtils::drawWrapped(desc.c_str(), cx + innerPad + 12, textY, descSize,
+                                   Color{160, 160, 160, 255}, contentW - 24);
 
-    // Special ability — single line, truncate cleanly
+    textY += 6;
+
+    // Special ability — dynamically wrapped
     std::string special = c.value("special", "");
-    while (TextUtils::measure(special.c_str(), descSize) > contentW && special.size() > 4) {
-      special.pop_back();
-    }
-    if (special.size() < c.value("special", std::string("")).size()) {
-      while (!special.empty() && special.back() == ' ') special.pop_back();
-      special += "...";
-    }
     if (!special.empty()) {
-      TextUtils::draw(special.c_str(), cx + innerPad, textY, descSize,
-               Color{220, 180, 100, 200});
+      textY = TextUtils::drawWrapped(special.c_str(), cx + innerPad + 12, textY, descSize,
+                                     Color{220, 190, 110, 255}, contentW - 24);
     }
 
     // Selection glow
@@ -1633,11 +1702,11 @@ void Game::drawAbilitySelect() {
   drawUIPanel(mainX, mainY, mainW, mainH, Color{12, 12, 22, 230},
               Color{160, 130, 60, 255});
 
-  TextUtils::drawCenteredShadow("ELIGE UNA HABILIDAD", 40, 22,
-           Color{220, 180, 100, 255}, screenWidth);
+  TextUtils::drawCenteredOutlined("ELIGE UNA HABILIDAD", mainY + 35, 22,
+           Color{220, 180, 100, 255}, screenWidth, 2);
 
-  int cardW = 500, cardH = 100;
-  int startY = 100;
+  int cardW = 330, cardH = 100;
+  int startY = mainY + 80;
 
   for (int i = 0; i < (int)abilityChoices.size(); i++) {
     auto &ab = abilityChoices[i];
@@ -1664,7 +1733,7 @@ void Game::drawAbilitySelect() {
                        sel ? Color{220, 180, 100, 255} : rarityCol);
 
     if (sel)
-      TextUtils::draw(">", cardX - 20, cardY + cardH / 2 - 8, 16,
+      TextUtils::draw(">", cardX - 12, cardY + cardH / 2 - 8, 16,
                Color{220, 180, 100, 255});
 
     // Name + rarity tag
@@ -1673,9 +1742,8 @@ void Game::drawAbilitySelect() {
     int rw = TextUtils::measure(rarityText, 10);
     TextUtils::draw(rarityText, cardX + cardW - rw - 15, cardY + 12, 10, rarityCol);
 
-    // Description — truncate to fit
-    std::string descStr = TextUtils::truncate(ab.description, 10, contentW);
-    TextUtils::draw(descStr.c_str(), cardX + 15, cardY + 35, 10, WHITE);
+    // Description — wrapped to fit
+    TextUtils::drawWrapped(ab.description.c_str(), cardX + 15, cardY + 35, 10, WHITE, contentW - 30);
 
     // Tags
     int tagX = cardX + 15;
@@ -2043,14 +2111,14 @@ void Game::drawInfoMenu() {
   drawUIPanel(mainX, mainY, mainW, mainH, Color{15, 15, 25, 235},
               Color{180, 140, 60, 255});
 
-  TextUtils::drawCenteredShadow("INFORMACION", mainY + 14, 22,
+  TextUtils::drawCenteredShadow("INFORMACION", mainY + 35, 22,
                                 Color{220, 180, 100, 255}, screenWidth);
 
-  int colW = (mainW - 60) / 2;
-  int leftX = mainX + 20;
-  int rightX = mainX + 30 + colW;
-  int topY = mainY + 56;
-  int bottomLimit = mainY + mainH - 26;
+  int colW = (mainW - 70) / 2;
+  int leftX = mainX + 35;
+  int rightX = mainX + 35 + colW;
+  int topY = mainY + 65;
+  int bottomLimit = mainY + mainH - 35;
 
   auto sectionHeader = [&](int x, int y, const char *label) {
     TextUtils::draw(label, x, y, 12, Color{220, 180, 100, 255});
@@ -2058,28 +2126,30 @@ void Game::drawInfoMenu() {
   };
 
   // ---------- LEFT COLUMN: Controls + Run + Stats ----------
-  int ly = topY;
+  if (infoMenuTab == 0) {
+    int ly = topY;
 
-  sectionHeader(leftX, ly, "CONTROLES");
-  ly += 24;
-  struct Bind { const char *key; const char *desc; };
-  Bind binds[] = {
-    {"WASD",   "Moverse"},
-    {"J",      "Ataque ligero"},
-    {"K",      "Ataque pesado"},
-    {"L",      "Especial de clase"},
-    {"SPACE",  "Esquivar (i-frames)"},
-    {"E",      "Interactuar"},
-    {"I",      "Inventario (descartar)"},
-    {"TAB",    "Este menu"},
-    {"ESC/P",  "Pausa"},
-  };
-  for (auto &b : binds) {
-    if (ly + 14 > bottomLimit) break;
-    TextUtils::draw(b.key, leftX, ly, 10, Color{180, 220, 100, 255});
-    TextUtils::draw(b.desc, leftX + 90, ly, 10, Color{200, 200, 200, 255});
-    ly += 14;
-  }
+    sectionHeader(leftX, ly, "CONTROLES");
+    ly += 24;
+    struct Bind { const char *key; const char *desc; };
+    Bind binds[] = {
+      {"WASD",   "Moverse"},
+      {"J",      "Ataque ligero"},
+      {"K",      "Ataque pesado"},
+      {"L",      "Especial de clase"},
+      {"SPACE",  "Esquivar (i-frames)"},
+      {"E",      "Interactuar"},
+      {"I",      "Inventario (descartar)"},
+      {"TAB",    "Estadisticas"},
+      {"H",      "Habilidades"},
+      {"ESC/P",  "Pausa"},
+    };
+    for (auto &b : binds) {
+      if (ly + 14 > bottomLimit) break;
+      TextUtils::draw(b.key, leftX, ly, 10, Color{180, 220, 100, 255});
+      TextUtils::draw(b.desc, leftX + 90, ly, 10, Color{200, 200, 200, 255});
+      ly += 14;
+    }
 
   ly += 10;
   sectionHeader(leftX, ly, "RUN");
@@ -2120,71 +2190,70 @@ void Game::drawInfoMenu() {
            Color{200, 120, 80, 255});
   }
 
-  // ---------- RIGHT COLUMN: Abilities + Synergies + Items ----------
-  int ry = topY;
+  } // Cerramos if(infoMenuTab == 0)
 
-  sectionHeader(rightX, ry, "HABILIDADES");
-  ry += 24;
-  if (registry.hasComponent<AbilityHolder>(playerEntity)) {
-    auto &ah = registry.getComponent<AbilityHolder>(playerEntity);
-    if (ah.abilities.empty()) {
-      TextUtils::draw("(ninguna)", rightX, ry, 10, Color{100, 100, 100, 255});
-      ry += 14;
-    } else {
-      for (auto &ab : ah.abilities) {
+  if (infoMenuTab == 1) {
+    int rx = mainX + 35; 
+    int ry = topY;
+    int fullW = mainW - 70;
+
+    auto fullHeader = [&](int x, int y, const char *label) {
+      TextUtils::draw(label, x, y, 12, Color{220, 180, 100, 255});
+      DrawLine(x, y + 18, x + fullW, y + 18, Color{120, 90, 40, 200});
+    };
+
+    fullHeader(rx, ry, "HABILIDADES ESPECIALES");
+    ry += 24;
+    if (registry.hasComponent<AbilityHolder>(playerEntity)) {
+      auto &ah = registry.getComponent<AbilityHolder>(playerEntity);
+      if (ah.abilities.empty()) {
+        TextUtils::draw("Sin habilidades activas.", rx, ry, 10, Color{150, 150, 150, 255});
+        ry += 30;
+      } else {
+        int halfW = fullW / 2;
+        int col = 0;
+        int startRy = ry;
+        for (auto &ab : ah.abilities) {
+          if (ry + 20 > bottomLimit - 100 && col == 0) {
+            col = 1; ry = startRy; // salta a segunda columna
+          }
+          if (ry + 20 > bottomLimit - 100 && col == 1) break;
+          
+          Color nameCol = (ab.rarity == AbilityRarity::EPIC) ? Color{200, 100, 255, 255} : (ab.rarity == AbilityRarity::RARE) ? Color{100, 180, 255, 255} : Color{220, 220, 220, 255};
+          TextUtils::draw(ab.name.c_str(), rx + col * halfW, ry, 11, nameCol);
+          TextUtils::draw(ab.description.c_str(), rx + 160 + col * halfW, ry, 10, Color{180, 180, 180, 255});
+          ry += 20;
+        }
+        ry = (col == 1 ? ry : ry + 20); 
+        // Force Ry to bottom grid if abilities aren't many
+        if (ry < bottomLimit - 120) ry = bottomLimit - 120;
+      }
+    }
+
+    ry += 10;
+    fullHeader(rx, ry, "SINERGIAS ACTIVAS");
+    ry += 24;
+    {
+      auto &states = synergySystem.getStates();
+      auto &defs = synergySystem.getDefs();
+      for (int i = 0; i < (int)states.size(); i++) {
         if (ry + 14 > bottomLimit) break;
-        std::string name = TextUtils::truncate(ab.name, 10, colW);
-        TextUtils::draw(name.c_str(), rightX, ry, 10,
-                        Color{180, 220, 100, 255});
-        ry += 14;
+        bool act = states[i].active;
+        if (!act) continue; // Only show active synergies!
+        Color col = Color{120, 255, 120, 255};
+        DrawRectangle(rx, ry + 2, 6, 8, col);
+        std::string n = TextUtils::truncate(defs[i].name, 10, fullW - 14);
+        TextUtils::draw(n.c_str(), rx + 15, ry, 11, col);
+        ry += 16;
+      }
+      if (ry == bottomLimit - 96 || states.empty()) {
+        TextUtils::draw("(Ninguna sinergia activa)", rx, ry, 10, Color{100, 100, 100, 255});
       }
     }
   }
 
-  ry += 10;
-  sectionHeader(rightX, ry, "SINERGIAS");
-  ry += 24;
-  {
-    auto &states = synergySystem.getStates();
-    auto &defs = synergySystem.getDefs();
-    int activeCount = 0;
-    for (int i = 0; i < (int)states.size(); i++) {
-      if (ry + 14 > bottomLimit) break;
-      bool act = states[i].active;
-      if (act) activeCount++;
-      Color col = act ? Color{120, 255, 120, 255} : Color{90, 90, 90, 255};
-      DrawRectangle(rightX, ry + 2, 6, 8, col);
-      std::string n = TextUtils::truncate(defs[i].name, 10, colW - 14);
-      TextUtils::draw(n.c_str(), rightX + 12, ry, 10, col);
-      ry += 14;
-    }
-    if (states.empty())
-      TextUtils::draw("(ninguna)", rightX, ry, 10, Color{100, 100, 100, 255});
-  }
-
-  ry += 10;
-  sectionHeader(rightX, ry, "OBJETOS");
-  ry += 24;
-  if (registry.hasComponent<ItemHolder>(playerEntity)) {
-    auto &ih = registry.getComponent<ItemHolder>(playerEntity);
-    if (ih.equippedItems.empty()) {
-      TextUtils::draw("(ninguno)", rightX, ry, 10, Color{100, 100, 100, 255});
-    } else {
-      for (auto &item : ih.equippedItems) {
-        if (ry + 14 > bottomLimit) break;
-        Color col = {180, 180, 180, 255};
-        if (item.rarity == ItemRarity::UNCOMMON) col = {80, 200, 80, 255};
-        else if (item.rarity == ItemRarity::RARE) col = {80, 140, 255, 255};
-        else if (item.rarity == ItemRarity::EPIC) col = {200, 80, 255, 255};
-        else if (item.rarity == ItemRarity::LEGENDARY) col = {255, 180, 0, 255};
-        std::string n = TextUtils::truncate(item.name, 10, colW);
-        TextUtils::draw(n.c_str(), rightX, ry, 10, col);
-        ry += 14;
-      }
-    }
-  }
-
-  TextUtils::drawCentered("[TAB / ESC] Cerrar", mainY + mainH - 18, 10,
+  // Common footer navigation for all tabs
+  TextUtils::drawCentered("[A/D] Cambiar Pestana   [TAB/ESC] Cerrar", mainY + mainH - 22, 10,
                           Color{160, 160, 160, 255}, screenWidth);
 }
 
@@ -2198,12 +2267,12 @@ void Game::drawItemSwap() {
   drawUIPanel(mainX, mainY, mainW, mainH, Color{15, 15, 25, 230},
               Color{200, 160, 60, 255});
 
-  TextUtils::drawCenteredShadow("INTERCAMBIAR ITEM", 28, 18, Color{255, 200, 80, 255}, screenWidth);
+  TextUtils::drawCenteredOutlined("INTERCAMBIAR ITEM", mainY + 35, 18, Color{255, 200, 80, 255}, screenWidth, 2);
 
   // Show new item
-  int newBoxW = 450, newBoxH = 60;
+  int newBoxW = 420, newBoxH = 60;
   int nbx = (screenWidth - newBoxW) / 2;
-  int nby = 75;
+  int nby = mainY + 70;
   DrawRectangle(nbx, nby, newBoxW, newBoxH, Color{30, 40, 20, 255});
   DrawRectangleLines(nbx, nby, newBoxW, newBoxH, Color{180, 220, 80, 255});
   TextUtils::draw("Nuevo:", nbx + 10, nby + 5, 10, Color{180, 220, 80, 255});
@@ -2219,9 +2288,9 @@ void Game::drawItemSwap() {
     return;
   auto &ih = registry.getComponent<ItemHolder>(playerEntity);
 
-  int panelW = 450, slotH = 45;
+  int panelW = 420, slotH = 45;
   int px = (screenWidth - panelW) / 2;
-  int py = 150;
+  int py = mainY + 140;
 
   for (int i = 0; i < (int)ih.equippedItems.size(); i++) {
     int sy = py + i * (slotH + 4);
@@ -2246,28 +2315,71 @@ void Game::drawItemSwap() {
            screenHeight - 40, 8, Color{120, 120, 120, 255}, screenWidth);
 }
 
+static void drawScaledNPatch(Texture2D tex, Rectangle dst, int srcBorder, int dstBorder, Color tint) {
+    int w = tex.width;
+    int h = tex.height;
+    int sb = srcBorder;
+    
+    Rectangle srcTL = { 0.f, 0.f, (float)sb, (float)sb };
+    Rectangle srcT = { (float)sb, 0.f, (float)(w - 2*sb), (float)sb };
+    Rectangle srcTR = { (float)(w - sb), 0.f, (float)sb, (float)sb };
+    Rectangle srcL = { 0.f, (float)sb, (float)sb, (float)(h - 2*sb) };
+    Rectangle srcC = { (float)sb, (float)sb, (float)(w - 2*sb), (float)(h - 2*sb) };
+    Rectangle srcR = { (float)(w - sb), (float)sb, (float)sb, (float)(h - 2*sb) };
+    Rectangle srcBL = { 0.f, (float)(h - sb), (float)sb, (float)sb };
+    Rectangle srcB = { (float)sb, (float)(h - sb), (float)(w - 2*sb), (float)sb };
+    Rectangle srcBR = { (float)(w - sb), (float)(h - sb), (float)sb, (float)sb };
+
+    float dw = dst.width;
+    float dh = dst.height;
+    
+    float actualDbX = std::min((float)dstBorder, dw / 2.0f);
+    float actualDbY = std::min((float)dstBorder, dh / 2.0f);
+    
+    Rectangle dstTL = { dst.x, dst.y, actualDbX, actualDbY };
+    Rectangle dstT = { dst.x + actualDbX, dst.y, std::max(0.0f, dw - 2*actualDbX), actualDbY };
+    Rectangle dstTR = { dst.x + dw - actualDbX, dst.y, actualDbX, actualDbY };
+    Rectangle dstL = { dst.x, dst.y + actualDbY, actualDbX, std::max(0.0f, dh - 2*actualDbY) };
+    Rectangle dstC = { dst.x + actualDbX, dst.y + actualDbY, std::max(0.0f, dw - 2*actualDbX), std::max(0.0f, dh - 2*actualDbY) };
+    Rectangle dstR = { dst.x + dw - actualDbX, dst.y + actualDbY, actualDbX, std::max(0.0f, dh - 2*actualDbY) };
+    Rectangle dstBL = { dst.x, dst.y + dh - actualDbY, actualDbX, actualDbY };
+    Rectangle dstB = { dst.x + actualDbX, dst.y + dh - actualDbY, std::max(0.0f, dw - 2*actualDbX), actualDbY };
+    Rectangle dstBR = { dst.x + dw - actualDbX, dst.y + dh - actualDbY, actualDbX, actualDbY };
+
+    DrawTexturePro(tex, srcTL, dstTL, {0,0}, 0, tint);
+    DrawTexturePro(tex, srcT, dstT, {0,0}, 0, tint);
+    DrawTexturePro(tex, srcTR, dstTR, {0,0}, 0, tint);
+    DrawTexturePro(tex, srcL, dstL, {0,0}, 0, tint);
+    DrawTexturePro(tex, srcC, dstC, {0,0}, 0, tint);
+    DrawTexturePro(tex, srcR, dstR, {0,0}, 0, tint);
+    DrawTexturePro(tex, srcBL, dstBL, {0,0}, 0, tint);
+    DrawTexturePro(tex, srcB, dstB, {0,0}, 0, tint);
+    DrawTexturePro(tex, srcBR, dstBR, {0,0}, 0, tint);
+}
+
 // =============================================================================
-// UI Panel — draws a panel with the art texture or a fallback solid bg
+// UI Panel — draws a panel with the art texture using scaled 9-patch
 // =============================================================================
 void Game::drawUIPanel(int x, int y, int w, int h, Color fallbackBg,
                        Color borderCol) {
   Texture2D panelTex = ResourceManager::getInstance().getTexture(
       "assets/art/ui_panel.png");
   if (panelTex.id > 0) {
-    // Draw tiled/stretched panel texture
-    Rectangle src = {0, 0, (float)panelTex.width, (float)panelTex.height};
     Rectangle dst = {(float)x, (float)y, (float)w, (float)h};
-    DrawTexturePro(panelTex, src, dst, {0, 0}, 0.0f,
-                   Color{255, 255, 255, fallbackBg.a});
+    
+    // Source border size: Assuming standard 1024x1024 AI gen image, border is ~180px
+    int sourceBorder = panelTex.width * 0.18f; 
+    
+    // Destination border size: Scale down to 30px so it frames nicely without eating up space
+    int destBorder = 30; 
+    
+    drawScaledNPatch(panelTex, dst, sourceBorder, destBorder, Color{255, 255, 255, fallbackBg.a});
+    
+    // Extra darkening center to make text super clear
+    DrawRectangle(x + destBorder, y + destBorder, w - 2*destBorder, h - 2*destBorder, Color{10, 10, 15, (unsigned char)(fallbackBg.a * 0.5f)});
   } else {
     DrawRectangle(x, y, w, h, fallbackBg);
   }
-  // Ornate border: outer gold, inner dark
-  DrawRectangleLinesEx({(float)x, (float)y, (float)w, (float)h}, 2.0f,
-                       borderCol);
-  DrawRectangleLinesEx({(float)(x + 3), (float)(y + 3), (float)(w - 6),
-                        (float)(h - 6)},
-                       1.0f, Color{borderCol.r, borderCol.g, borderCol.b, 80});
 }
 
 // =============================================================================
@@ -2416,8 +2528,13 @@ void Game::drawAbilitiesView() {
 // =============================================================================
 void Game::shutdown() {
   saveManager.save();
+  UnloadRenderTexture(renderTarget);
+  UnloadShader(crtVignetteShader);
   AudioManager::getInstance().shutdown();
   ResourceManager::getInstance().unloadAll();
+  PartikelEmitters::shutdown();
+  LuaEngine::shutdown();
+  DebugPanel::shutdown();
   CloseWindow();
 }
 
@@ -2426,6 +2543,7 @@ void Game::run() {
   while (!WindowShouldClose()) {
     update(GetFrameTime());
     render();
+    INFERNUS_FRAME;
   }
   shutdown();
 }

@@ -1,4 +1,5 @@
 #include "MiniBossAISystem.h"
+#include "../debug/Profiler.h"
 #include "../components/MiniBoss.h"
 #include "../components/Transform.h"
 #include "../components/Health.h"
@@ -11,6 +12,7 @@
 #include <cmath>
 
 void MiniBossAISystem::update(Registry &registry, CameraSystem &cam, float deltaTime, Entity playerEntity) {
+    INFERNUS_ZONE_N("MiniBossAISystem");
     auto view = registry.view<MiniBoss, Transform2D, Health, Combat>();
     for (auto entity : view) {
         auto &mb = registry.getComponent<MiniBoss>(entity);

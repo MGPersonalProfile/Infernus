@@ -1,4 +1,5 @@
 #include "HealthSystem.h"
+#include "../debug/Profiler.h"
 #include "../audio/AudioManager.h"
 #include "../components/AIBehavior.h"
 #include "../components/Collider.h"
@@ -16,6 +17,7 @@
 #include "raylib.h"
 
 void HealthSystem::update(Registry &registry, float deltaTime) {
+  INFERNUS_ZONE_N("HealthSystem");
   auto view = registry.view<Health>();
 
   for (Entity entity : view) {

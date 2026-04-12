@@ -1,4 +1,5 @@
 #include "CombatSystem.h"
+#include "../debug/Profiler.h"
 #include "../audio/AudioManager.h"
 #include "../components/AIBehavior.h"
 #include "../components/Animation.h"
@@ -24,6 +25,7 @@
 
 void CombatSystem::update(Registry &registry, CameraSystem &cameraSystem,
                           ScreenEffects &screenEffects, float deltaTime) {
+  INFERNUS_ZONE_N("CombatSystem");
   processLifetimes(registry, deltaTime);
   processAttackStates(registry, deltaTime);
   processHitDetection(registry, cameraSystem, screenEffects);

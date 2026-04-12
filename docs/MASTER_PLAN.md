@@ -1,7 +1,7 @@
 # INFERNUS — Plan Maestro
 
 > Estado actual del proyecto, arquitectura, y hoja de ruta completa.
-> Ultima actualizacion: 7 de Abril, 2026
+> Ultima actualizacion: 12 de Abril, 2026
 
 ---
 
@@ -20,6 +20,17 @@
 
 ### Stack
 C++17 · Raylib 5.x · ECS custom · JSON data-driven (nlohmann/json) · CMake 3.20+
+
+### Tooling integrado (2026-04-12)
+| Herramienta | Uso | Activacion |
+|---|---|---|
+| **Dear ImGui + rlImGui** | Debug panel in-game (F12): FPS, HP, tunables, cheats | Siempre en desktop, no-op en WASM |
+| **Tracy profiler** | Frame profiler AAA, ZoneScoped en 10 sistemas | Build con `-DINFERNUS_TRACY=ON` |
+| **sol2 + Lua 5.4** | Boss patterns scriptables, hot-reload F5 | Siempre en desktop, stubs en WASM |
+| **LDtkLoader** | Carga rooms handcrafted desde LDtk editor | Siempre en desktop, stubs en WASM |
+| **libpartikel** | Emitter particles: sangre, dash dust, fuego, shockwave | Siempre |
+| **image-viewer-mcp** | Claude puede ver PNGs en contexto | MCP server en ~/.claude.json |
+| **puppeteer-mcp-claude** | Browser automation via tool calls | MCP server en ~/.claude.json |
 
 ### Estructura de Carpetas
 ```
@@ -40,6 +51,8 @@ INFERNUS/
 │   ├── input/                  # InputManager
 │   ├── ui/                     # UIRenderer
 │   ├── meta/                   # SaveManager
+│   ├── debug/                  # DebugPanel (ImGui), Profiler (Tracy)
+│   ├── scripting/              # LuaEngine (sol2 + Lua 5.4)
 │   └── utils/                  # Constants
 ├── assets/
 │   ├── data/                   # JSON: enemies, bosses, minibosses, abilities, items, synergies, lore, characters

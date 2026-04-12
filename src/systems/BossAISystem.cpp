@@ -1,4 +1,6 @@
 #include "BossAISystem.h"
+#include "../debug/Profiler.h"
+#include "../scripting/LuaEngine.h"
 #include "../audio/AudioManager.h"
 #include "../components/BossPhase.h"
 #include "../components/Collider.h"
@@ -17,6 +19,7 @@
 
 void BossAISystem::update(Registry &registry, CameraSystem &cameraSystem,
                           float deltaTime, Entity playerEntity) {
+  INFERNUS_ZONE_N("BossAISystem");
   auto bossView = registry.view<BossPhase, Transform2D, Health, Combat>();
 
   for (Entity boss : bossView) {
@@ -84,9 +87,10 @@ void BossAISystem::selectPattern(Registry &registry, Entity boss) {
   auto &bp = registry.getComponent<BossPhase>(boss);
   auto &phase = bp.current();
 
-  // Pick a random pattern from the current phase's available patterns
-  int idx = GetRandomValue(0, (int)phase.patterns.size() - 1);
-  const std::string &pat = phase.patterns[idx];
+  // Let Lua pick the pattern (falls back to random if script errors or missing)
+  auto &health = registry.getComponent<Health>(boss);
+  float hpRatio = health.maxHP > 0 ? (float)health.currentHP / health.maxHP : 1.0f;
+  const std::string pat = LuaEngine::selectBossPattern(bp.currentPhase, hpRatio, phase.patterns);
 
   if (pat == "charge")
     bp.currentPattern = BossPattern::CHARGE;

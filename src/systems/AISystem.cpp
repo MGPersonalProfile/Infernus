@@ -1,4 +1,5 @@
 #include "AISystem.h"
+#include "../debug/Profiler.h"
 #include "../components/Combat.h"
 #include "../components/Sprite.h"
 #include "../components/Transform.h"
@@ -12,6 +13,7 @@
 // =============================================================================
 
 void AISystem::update(Registry &registry, float deltaTime) {
+  INFERNUS_ZONE_N("AISystem");
   auto aiView = registry.view<AIBehavior, Transform2D, Velocity>();
 
   for (Entity entity : aiView) {
