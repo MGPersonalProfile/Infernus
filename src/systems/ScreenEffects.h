@@ -35,19 +35,22 @@ public:
       fadeTimer -= deltaTime;
   }
 
+  // Update flash timer globally (so death flash fades even in GAME_OVER state)
+  void updateFlash(float deltaTime) {
+    if (flashTimer > 0.0f)
+      flashTimer -= deltaTime;
+  }
+
   bool isFading() const { return fadeTimer > 0.0f; }
   bool isFadingOut() const { return fadeTimer > 0.0f && fadeDirection == -1; }
 
-  // Update gameplay effects (hitstop, flash). Returns true if in hitstop.
-  // Fade is NOT updated here — use updateFade() separately.
+  // Update gameplay effects (hitstop only). Returns true if in hitstop.
+  // Flash and fade are updated globally via updateFlash()/updateFade().
   bool update(float deltaTime) {
     if (hitstopTimer > 0.0f) {
       hitstopTimer -= deltaTime;
       return true; // In hitstop — skip gameplay
     }
-
-    if (flashTimer > 0.0f)
-      flashTimer -= deltaTime;
 
     return false;
   }

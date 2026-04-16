@@ -1,7 +1,7 @@
 # INFERNUS — Plan Maestro
 
 > Estado actual del proyecto, arquitectura, y hoja de ruta completa.
-> Ultima actualizacion: 12 de Abril, 2026
+> Ultima actualizacion: 13 de Abril, 2026
 
 ---
 
@@ -158,27 +158,28 @@ Todo dato de gameplay viene de JSON en `assets/data/`. Las factories cargan JSON
 > Que el Circulo VII funcione correctamente. No se anaden features, solo se arregla y pule.
 
 #### A.1 — Fix de Colisiones
-- [ ] CollisionSystem AABB vs tiles solidos: resolver empuje correctamente
-- [ ] Resolucion por eje (X e Y separados)
-- [ ] Jugador-muro: push-back sin overlapping
-- [ ] Enemigos-muro: AI no pathea a traves de paredes
-- [ ] Boss-muro: no salirse de la arena
-- [ ] Proyectiles se destruyen al impactar muros
+- [x] CollisionSystem AABB vs tiles solidos: resolver empuje correctamente
+- [x] Resolucion por eje (X e Y separados) — split-axis en CollisionSystem.h
+- [x] Jugador-muro: push-back sin overlapping
+- [x] Enemigos-muro: AI no pathea a traves de paredes — collision pushback + wall cache
+- [x] Boss-muro: no salirse de la arena — enforceBoundaries + split-axis
+- [x] Proyectiles se destruyen al impactar muros
+- [x] Fix: decoraciones de piso tenian collider solido invisible (bug)
 - [ ] Test: caminar contra cada pared, pilares, bordes
 
 #### A.2 — Balance del Circulo VII
-- [ ] Reducir salas a 3-4 antes del boss
-- [ ] Ajustar enemigos por sala: empezar con 2, escalar a 3-4
-- [ ] Mas loot drops
-- [ ] Ajustar curva de dificultad (sigue siendo souls-like, pero justo)
+- [x] Reducir salas a 3-4 antes del boss (totalRooms 5→4)
+- [x] Ajustar enemigos por sala: 2+difficulty (sala0=2, sala3=5)
+- [x] Mas loot drops (todos los enemigos +10-15% chance, fix tank lootValue=0)
+- [x] Ajustar curva de dificultad: composicion de enemigos escala por sala
 
 #### A.3 — Fixes Menores
-- [ ] Eliminar `static float introTimer` en BOSS_INTRO
-- [ ] Limpiar warnings (unused variables)
-- [ ] Verificar transicion ABILITY_SELECT → BOSS_INTRO
-- [ ] Verificar que morir y reintentar limpia todo el estado
-- [ ] RoomGenerator: salas transitables, no bloquear caminos
-- [ ] Crear directorio `save/` automaticamente si no existe
+- [x] Eliminar `static float introTimer` en BOSS_INTRO → bossIntroTimer miembro
+- [x] Limpiar warnings (nameW, borderCol)
+- [x] Verificar transicion ABILITY_SELECT → BOSS_INTRO — funciona correctamente
+- [x] Verificar que morir y reintentar limpia todo el estado — OK (isAlive check)
+- [x] RoomGenerator: salas transitables — franja horizontal limpia desde spawn
+- [x] Crear directorio `save/` automaticamente si no existe — std::filesystem
 
 #### A.4 — Playtest
 - [ ] 10 runs completas del Circulo VII
@@ -192,9 +193,9 @@ Todo dato de gameplay viene de JSON en `assets/data/`. Las factories cargan JSON
 > Un Circulo perfecto que represente la experiencia final.
 
 #### B.1 — Combate Avanzado
-- [ ] Parry (ventana 0.2s, anula dano, stagger 1.5s, 15 stamina)
-- [ ] Combos (3 hits ligeros encadenados + finisher pesado)
-- [ ] Dano elemental (PHYSICAL, FIRE, ICE, LIGHTNING, TOXIC) con resistencias
+- [x] Parry (F/RB, ventana 0.2s, anula dano, stagger 1.5s, 15 stamina, recovery 0.4s si falla)
+- [x] Combos (3 J encadenados → K finisher: 2.5x dano, 2x knockback, windup -30%)
+- [x] Dano elemental (PHYSICAL, FIRE, ICE, LIGHTNING, TOXIC) con resistencias (Health.resistances, JSON-driven, damage numbers coloreados)
 
 #### B.2 — Enemigos Mejorados
 - [ ] AI pathfinding basico (no quedarse atascados contra paredes)
@@ -213,14 +214,14 @@ Todo dato de gameplay viene de JSON en `assets/data/`. Las factories cargan JSON
 - [ ] UI de sinergias con progreso visible
 
 #### B.5 — Generacion Procedural Mejorada
-- [ ] Grafo de salas con bifurcaciones
-- [ ] Sala de tienda (gastar HP por habilidad), sala de descanso (30% HP)
-- [ ] Minimap simple
+- [x] Grafo de salas con bifurcaciones (RunMap DAG: 5 capas, MAP_SELECT UI)
+- [x] Sala de tienda (gastar HP por habilidad), sala de descanso (30% HP)
+- [x] Minimap simple (barra de progreso en esquina durante PLAYING)
 
 #### B.6 — Arte del Circulo VII
-- [ ] Pixel art real para jugador, enemigos, boss, tiles, parallax
-- [ ] Paleta: rojos (#8B0000), gris oscuro (#2B2B2B), naranja lava (#CC4400)
-- [ ] Particulas ambientales: ceniza, gotas de sangre
+- [x] Pixel art real para jugador, enemigos, boss, tiles, parallax (multi-frame spritesheets: idle/run/attack para todos, AnimState system)
+- [x] Paleta: rojos (#8B0000), gris oscuro (#2B2B2B), naranja lava (#CC4400) — Antigravity ajustó tiles, parallax, ui_panel + palette_reference.png
+- [x] Particulas ambientales: ceniza (ash_particle.png 4-frame), gotas de sangre (blood_drop.png 3-frame)
 
 #### B.7 — Audio del Circulo VII
 - [ ] Musica de exploracion + boss

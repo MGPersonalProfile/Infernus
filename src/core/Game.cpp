@@ -4,6 +4,7 @@
 #include "../scripting/LuaEngine.h"
 #include "../systems/PartikelEmitters.h"
 #include "../components/AIBehavior.h"
+#include "../components/AnimState.h"
 #include "../components/Animation.h"
 #include "../components/BossPhase.h"
 #include "../components/DamageNumber.h"
@@ -67,7 +68,8 @@ void Game::init() {
 
   // Post-Processing Initializations
   renderTarget = LoadRenderTexture(screenWidth, screenHeight);
-  SetTextureFilter(renderTarget.texture, TEXTURE_FILTER_BILINEAR);
+  // Fixed the blurriness
+  SetTextureFilter(renderTarget.texture, TEXTURE_FILTER_POINT);
   crtVignetteShader = LoadShader(0, "src/shaders/CRT_Vignette.fs");
   renderSizeLoc = GetShaderLocation(crtVignetteShader, "renderSize");
   float sz[2] = { (float)screenWidth, (float)screenHeight };
@@ -84,12 +86,14 @@ void Game::spawnRoom() {
   roomGenerator.clear(registry);
   registry.flushDestroyed();
   roomCleared = false;
+  ashParticles.clear();
 
   bool isBossRoom = (currentRoom >= totalRooms);
 
   // Generate and instantiate room layout
   RoomTemplate room = roomGenerator.generate(currentRoom, isBossRoom);
   roomGenerator.instantiate(registry, room);
+  collisionSystem.invalidateWallCache();
 
   // Move player to spawn point
   if (registry.hasComponent<Transform2D>(playerEntity)) {
@@ -106,17 +110,27 @@ void Game::spawnRoom() {
       float ex = RoomGenerator::tileToWorld(spawn.first, room.tileSize);
       float ey = RoomGenerator::tileToWorld(spawn.second, room.tileSize);
 
-      int type = GetRandomValue(0, 4);
-      if (type == 0)
-        EnemyFactory::create(registry, "melee", ex, ey, playerEntity);
-      else if (type == 1)
-        EnemyFactory::create(registry, "ranged", ex, ey, playerEntity);
-      else if (type == 2)
-        EnemyFactory::create(registry, "tank", ex, ey, playerEntity);
-      else if (type == 3)
-        EnemyFactory::create(registry, "assassin", ex, ey, playerEntity);
-      else
-        EnemyFactory::create(registry, "bomber", ex, ey, playerEntity);
+      // Enemy composition scales with room difficulty
+      const char *enemyId = "melee";
+      if (currentRoom <= 0) {
+        // Sala 0: only melee + ranged (learn the basics)
+        enemyId = GetRandomValue(0, 1) == 0 ? "melee" : "ranged";
+      } else if (currentRoom == 1) {
+        // Sala 1: melee, ranged, bomber
+        int r = GetRandomValue(0, 2);
+        enemyId = (r == 0) ? "melee" : (r == 1) ? "ranged" : "bomber";
+      } else if (currentRoom == 2) {
+        // Sala 2: melee, ranged, bomber, assassin
+        int r = GetRandomValue(0, 3);
+        const char *pool[] = {"melee", "ranged", "bomber", "assassin"};
+        enemyId = pool[r];
+      } else {
+        // Sala 3+: all types including tank
+        int r = GetRandomValue(0, 4);
+        const char *pool[] = {"melee", "ranged", "tank", "assassin", "bomber"};
+        enemyId = pool[r];
+      }
+      EnemyFactory::create(registry, enemyId, ex, ey, playerEntity);
     }
 
     // Spawn a mini-boss every 2 rooms (rooms 1, 3, 5...)
@@ -136,7 +150,77 @@ void Game::spawnRoom() {
     bossEntity = BossFactory::create(registry, "minotaur", bx, by);
     AudioManager::getInstance().playSFX("boss_roar");
     AudioManager::getInstance().playMusic("boss");
+    bossIntroTimer = 2.0f;
     state = GameState::BOSS_INTRO;
+  }
+}
+
+void Game::spawnRoomFromNode(MapNode &node) {
+  currentRoom = node.difficulty;
+
+  switch (node.type) {
+  case RoomType::COMBAT:
+  case RoomType::ELITE:
+    spawnRoom(); // reuse existing combat room generation
+    // Elite rooms: buff all enemies
+    if (node.type == RoomType::ELITE) {
+      auto enemies = registry.view<AIBehavior, Health, Combat>();
+      for (Entity e : enemies) {
+        auto &h = registry.getComponent<Health>(e);
+        auto &c = registry.getComponent<Combat>(e);
+        h.maxHP = (int)(h.maxHP * 1.5f);
+        h.currentHP = h.maxHP;
+        c.baseDamage = (int)(c.baseDamage * 1.3f);
+      }
+    }
+    break;
+
+  case RoomType::SHOP:
+    // Generate an empty room, no enemies — shop UI handled by SHOP state
+    {
+      roomGenerator.clear(registry);
+      registry.flushDestroyed();
+      collisionSystem.invalidateWallCache();
+      RoomTemplate room = roomGenerator.generate(0, false);
+      // Clear enemy spawns — shop has no enemies
+      room.enemySpawns.clear();
+      roomGenerator.instantiate(registry, room);
+      collisionSystem.invalidateWallCache();
+      if (registry.hasComponent<Transform2D>(playerEntity)) {
+        auto &pt = registry.getComponent<Transform2D>(playerEntity);
+        pt.x = RoomGenerator::tileToWorld(room.playerSpawn.first, room.tileSize);
+        pt.y = RoomGenerator::tileToWorld(room.playerSpawn.second, room.tileSize);
+      }
+      enemiesAlive = 0;
+      roomCleared = true;
+      state = GameState::SHOP;
+    }
+    break;
+
+  case RoomType::REST:
+    // Generate an empty room — rest UI handled by REST state
+    {
+      roomGenerator.clear(registry);
+      registry.flushDestroyed();
+      collisionSystem.invalidateWallCache();
+      RoomTemplate room = roomGenerator.generate(0, false);
+      room.enemySpawns.clear();
+      roomGenerator.instantiate(registry, room);
+      collisionSystem.invalidateWallCache();
+      if (registry.hasComponent<Transform2D>(playerEntity)) {
+        auto &pt = registry.getComponent<Transform2D>(playerEntity);
+        pt.x = RoomGenerator::tileToWorld(room.playerSpawn.first, room.tileSize);
+        pt.y = RoomGenerator::tileToWorld(room.playerSpawn.second, room.tileSize);
+      }
+      enemiesAlive = 0;
+      roomCleared = true;
+      state = GameState::REST;
+    }
+    break;
+
+  case RoomType::BOSS:
+    spawnRoom(); // uses currentRoom >= totalRooms logic
+    break;
   }
 }
 
@@ -183,7 +267,7 @@ void Game::checkRoomClear() {
 // =============================================================================
 // Player Input
 // =============================================================================
-void Game::handlePlayerInput() {
+void Game::handlePlayerInput(float deltaTime) {
   if (!registry.isAlive(playerEntity))
     return;
   if (!registry.hasComponent<Velocity>(playerEntity))
@@ -221,6 +305,15 @@ void Game::handlePlayerInput() {
       sprite.flipX = false;
   }
 
+  // Animation state transitions (idle ↔ run)
+  if (registry.hasComponent<AnimState>(playerEntity)) {
+    auto &as = registry.getComponent<AnimState>(playerEntity);
+    bool moving = (velocity.vx != 0.0f || velocity.vy != 0.0f);
+    if (as.current != AnimStateType::ATTACK) {
+      as.setState(moving ? AnimStateType::RUN : AnimStateType::IDLE);
+    }
+  }
+
   if (!registry.hasComponent<Combat>(playerEntity) ||
       !registry.hasComponent<Stamina>(playerEntity))
     return;
@@ -234,23 +327,67 @@ void Game::handlePlayerInput() {
     windupMult = registry.getComponent<PlayerStats>(playerEntity).finalWindupMultiplier;
   if (windupMult < 0.3f) windupMult = 0.3f; // Cap at 70% speed increase
 
+  // Combo timer decay
+  if (combat.comboTimer > 0.0f) {
+    combat.comboTimer -= deltaTime;
+    if (combat.comboTimer <= 0.0f)
+      combat.comboCount = 0; // combo dropped
+  }
+
   if (combat.currentState == AttackState::NONE) {
-    if (inputManager.isActionPressed(InputAction::ATTACK_LIGHT) &&
-        stamina.hasEnough(Constants::LIGHT_ATTACK_STAMINA)) {
+    // --- Parry (F / RB) ---
+    if (inputManager.isActionPressed(InputAction::PARRY) &&
+        stamina.hasEnough(Constants::PARRY_STAMINA)) {
+      combat.currentState = AttackState::PARRY_ACTIVE;
+      combat.stateTimer = Constants::PARRY_WINDOW;
+      stamina.currentStamina -= Constants::PARRY_STAMINA;
+      stamina.cooldownTimer = stamina.regenDelay;
+      AudioManager::getInstance().playSFX("dash"); // reuse for now
+    }
+    // --- Combo finisher: 3 lights → heavy input triggers finisher ---
+    else if (combat.comboCount >= 3 &&
+             inputManager.isActionPressed(InputAction::ATTACK_HEAVY) &&
+             stamina.hasEnough(Constants::HEAVY_ATTACK_STAMINA)) {
       combat.currentState = AttackState::WINDUP;
-      combat.stateTimer = Constants::LIGHT_ATTACK_WINDUP * windupMult;
+      combat.stateTimer = Constants::HEAVY_ATTACK_WINDUP * windupMult * 0.7f;
+      combat.lastAttackType = AttackType::HEAVY;
+      stamina.currentStamina -= Constants::HEAVY_ATTACK_STAMINA;
+      stamina.cooldownTimer = stamina.regenDelay;
+      combat.comboCount = 0;
+      combat.comboTimer = 0.0f;
+      combat.isFinisher = true;
+      AudioManager::getInstance().playSFX("attack_heavy");
+      if (registry.hasComponent<AnimState>(playerEntity))
+        registry.getComponent<AnimState>(playerEntity).setState(AnimStateType::ATTACK);
+    }
+    // --- Light attack (combo chain) ---
+    else if (inputManager.isActionPressed(InputAction::ATTACK_LIGHT) &&
+             stamina.hasEnough(Constants::LIGHT_ATTACK_STAMINA)) {
+      combat.currentState = AttackState::WINDUP;
+      float speedup = 1.0f - combat.comboCount * 0.08f; // each hit slightly faster
+      combat.stateTimer = Constants::LIGHT_ATTACK_WINDUP * windupMult * speedup;
       combat.lastAttackType = AttackType::LIGHT;
       stamina.currentStamina -= Constants::LIGHT_ATTACK_STAMINA;
       stamina.cooldownTimer = stamina.regenDelay;
+      combat.comboCount++;
+      combat.comboTimer = Constants::COMBO_WINDOW;
       AudioManager::getInstance().playSFX("attack_light");
-    } else if (inputManager.isActionPressed(InputAction::ATTACK_HEAVY) &&
-               stamina.hasEnough(Constants::HEAVY_ATTACK_STAMINA)) {
+      if (registry.hasComponent<AnimState>(playerEntity))
+        registry.getComponent<AnimState>(playerEntity).setState(AnimStateType::ATTACK);
+    }
+    // --- Heavy attack (standalone) ---
+    else if (inputManager.isActionPressed(InputAction::ATTACK_HEAVY) &&
+             stamina.hasEnough(Constants::HEAVY_ATTACK_STAMINA)) {
       combat.currentState = AttackState::WINDUP;
       combat.stateTimer = Constants::HEAVY_ATTACK_WINDUP * windupMult;
       combat.lastAttackType = AttackType::HEAVY;
       stamina.currentStamina -= Constants::HEAVY_ATTACK_STAMINA;
       stamina.cooldownTimer = stamina.regenDelay;
+      combat.comboCount = 0;
+      combat.comboTimer = 0.0f;
       AudioManager::getInstance().playSFX("attack_heavy");
+      if (registry.hasComponent<AnimState>(playerEntity))
+        registry.getComponent<AnimState>(playerEntity).setState(AnimStateType::ATTACK);
     }
   }
 
@@ -591,8 +728,10 @@ void Game::update(float deltaTime) {
   // Apply debug time scale (also affects fades, which feels right for slo-mo tests)
   deltaTime *= DebugPanel::tunables().timeScale;
 
-  // Update fade timer globally (so transitions work in ALL states)
+  // Update fade and flash timers globally (so they tick in ALL states,
+  // not just PLAYING — fixes red flash persisting on death screen)
   screenEffects.updateFade(deltaTime);
+  screenEffects.updateFlash(deltaTime);
 
   // Handle screen transitions
   if (transitionPhase == 1 && !screenEffects.isFadingOut()) {
@@ -801,25 +940,148 @@ void Game::update(float deltaTime) {
                                    abilityChoices[selectedAbility]);
         synergySystem.evaluate(registry, playerEntity);
         recalculatePlayerStats();
-        currentRoom++;
-        spawnRoom();
-        // spawnRoom may set state to BOSS_INTRO; mirror it into pendingTransition
-        if (state == GameState::BOSS_INTRO)
-          pendingTransition = GameState::BOSS_INTRO;
+
+        // If next layer is boss (single node), go directly
+        if (runMap.isBossNext()) {
+          runMap.advanceTo(0);
+          spawnRoomFromNode(runMap.current());
+          if (state == GameState::BOSS_INTRO)
+            pendingTransition = GameState::BOSS_INTRO;
+        } else if (!runMap.isLastLayer()) {
+          // Show map for player to choose next room
+          runMap.cursorIndex = 0;
+          pendingTransition = GameState::MAP_SELECT;
+        }
       };
       transitionTo(GameState::PLAYING, 0.4f);
     }
     return;
 
-  case GameState::BOSS_INTRO: {
-    static float introTimer = 2.0f;
-    introTimer -= deltaTime;
-    if (introTimer <= 0.0f) {
-      introTimer = 2.0f;
+  case GameState::BOSS_INTRO:
+    bossIntroTimer -= deltaTime;
+    if (bossIntroTimer <= 0.0f) {
       state = GameState::PLAYING;
     }
     return;
+
+  case GameState::MAP_SELECT: {
+    auto choices = runMap.nextChoices();
+    if (choices.empty()) return;
+    if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
+      runMap.cursorIndex = (runMap.cursorIndex - 1 + (int)choices.size()) % (int)choices.size();
+      AudioManager::getInstance().playSFX("menu_select");
+    }
+    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
+      runMap.cursorIndex = (runMap.cursorIndex + 1) % (int)choices.size();
+      AudioManager::getInstance().playSFX("menu_select");
+    }
+    if (IsKeyPressed(KEY_ENTER)) {
+      AudioManager::getInstance().playSFX("menu_confirm");
+      int chosen = choices[runMap.cursorIndex];
+      transitionCallback = [this, chosen]() {
+        runMap.advanceTo(chosen);
+        spawnRoomFromNode(runMap.current());
+        // If spawnRoomFromNode set a special state, mirror it
+        if (state == GameState::BOSS_INTRO || state == GameState::SHOP ||
+            state == GameState::REST)
+          pendingTransition = state;
+      };
+      transitionTo(GameState::PLAYING, 0.4f);
+    }
+    return;
   }
+
+  case GameState::SHOP: {
+    // Shop: offer 3 abilities for HP cost
+    if (!shopInitialized) {
+      shopItems = abilitySystem.getRandomChoices(3);
+      selectedAbility = 0;
+      shopInitialized = true;
+    }
+    if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+      selectedAbility = (selectedAbility - 1 + (int)shopItems.size()) % (int)shopItems.size();
+      AudioManager::getInstance().playSFX("menu_select");
+    }
+    if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
+      selectedAbility = (selectedAbility + 1) % (int)shopItems.size();
+      AudioManager::getInstance().playSFX("menu_select");
+    }
+    if (IsKeyPressed(KEY_ENTER) && !shopItems.empty() &&
+        registry.hasComponent<Health>(playerEntity)) {
+      auto &hp = registry.getComponent<Health>(playerEntity);
+      int cost = hp.maxHP / 10; // 10% max HP per purchase
+      if (hp.currentHP > cost) {
+        hp.currentHP -= cost;
+        abilitySystem.grantAbility(registry, playerEntity, shopItems[selectedAbility]);
+        synergySystem.evaluate(registry, playerEntity);
+        recalculatePlayerStats();
+        shopItems.erase(shopItems.begin() + selectedAbility);
+        if (selectedAbility >= (int)shopItems.size())
+          selectedAbility = std::max(0, (int)shopItems.size() - 1);
+        AudioManager::getInstance().playSFX("menu_confirm");
+      } else {
+        AudioManager::getInstance().playSFX("hit_player"); // not enough HP
+      }
+    }
+    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_E)) {
+      shopInitialized = false;
+      // Go to map select or boss if last
+      if (runMap.isBossNext()) {
+        transitionCallback = [this]() {
+          runMap.advanceTo(0);
+          spawnRoomFromNode(runMap.current());
+          if (state == GameState::BOSS_INTRO)
+            pendingTransition = GameState::BOSS_INTRO;
+        };
+        transitionTo(GameState::PLAYING, 0.4f);
+      } else if (!runMap.isLastLayer()) {
+        runMap.cursorIndex = 0;
+        state = GameState::MAP_SELECT;
+      }
+    }
+    return;
+  }
+
+  case GameState::REST:
+    if (IsKeyPressed(KEY_ENTER)) {
+      // Heal 30% max HP
+      if (registry.hasComponent<Health>(playerEntity)) {
+        auto &hp = registry.getComponent<Health>(playerEntity);
+        int heal = hp.maxHP * 3 / 10;
+        hp.currentHP = std::min(hp.currentHP + heal, hp.maxHP);
+        AudioManager::getInstance().playSFX("menu_confirm");
+        screenEffects.addFlash(Color{50, 200, 50, 80}, 0.3f);
+      }
+      // Advance
+      if (runMap.isBossNext()) {
+        transitionCallback = [this]() {
+          runMap.advanceTo(0);
+          spawnRoomFromNode(runMap.current());
+          if (state == GameState::BOSS_INTRO)
+            pendingTransition = GameState::BOSS_INTRO;
+        };
+        transitionTo(GameState::PLAYING, 0.4f);
+      } else if (!runMap.isLastLayer()) {
+        runMap.cursorIndex = 0;
+        state = GameState::MAP_SELECT;
+      }
+    }
+    if (IsKeyPressed(KEY_ESCAPE)) {
+      // Skip rest, go to map
+      if (runMap.isBossNext()) {
+        transitionCallback = [this]() {
+          runMap.advanceTo(0);
+          spawnRoomFromNode(runMap.current());
+          if (state == GameState::BOSS_INTRO)
+            pendingTransition = GameState::BOSS_INTRO;
+        };
+        transitionTo(GameState::PLAYING, 0.4f);
+      } else if (!runMap.isLastLayer()) {
+        runMap.cursorIndex = 0;
+        state = GameState::MAP_SELECT;
+      }
+    }
+    return;
 
   case GameState::INVENTORY:
     if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_I))
@@ -942,7 +1204,7 @@ void Game::update(float deltaTime) {
     return;
   }
 
-  handlePlayerInput();
+  handlePlayerInput(deltaTime);
   abilitySystem.update(registry, deltaTime);
   aiSystem.update(registry, deltaTime);
   bossAISystem.update(registry, cameraSystem, deltaTime, playerEntity);
@@ -1033,6 +1295,21 @@ void Game::render() {
     EndMode2D();
     drawItemSwap();
     break;
+  case GameState::MAP_SELECT:
+    drawMapSelect();
+    break;
+  case GameState::SHOP:
+    BeginMode2D(cameraSystem.camera);
+    renderSystem.update(registry);
+    EndMode2D();
+    drawShop();
+    break;
+  case GameState::REST:
+    BeginMode2D(cameraSystem.camera);
+    renderSystem.update(registry);
+    EndMode2D();
+    drawRest();
+    break;
   case GameState::PLAYING:
   default: {
 
@@ -1046,6 +1323,7 @@ void Game::render() {
     if (bossEntity != NULL_ENTITY && registry.isAlive(bossEntity))
       drawBossHealthBar();
     drawMiniBossHealthBar();
+    drawMinimap();
     break;
   }
   }
@@ -1115,9 +1393,30 @@ void Game::drawHUD() {
     DrawRectangleLinesEx({20, 48, 200, 14}, 1.0f, Color{150, 130, 70, 180});
   }
 
+  // Combo counter (show when combo is active)
+  if (registry.hasComponent<Combat>(playerEntity)) {
+    auto &combat = registry.getComponent<Combat>(playerEntity);
+    if (combat.comboCount > 0 && combat.comboTimer > 0.0f) {
+      unsigned char alpha = (unsigned char)(combat.comboTimer / Constants::COMBO_WINDOW * 255);
+      Color comboColor = combat.comboCount >= 3
+        ? Color{255, 200, 50, alpha}   // gold = finisher ready
+        : Color{255, 255, 255, alpha}; // white = chaining
+      TextUtils::drawOutlined(TextFormat("COMBO x%d", combat.comboCount), 20, 68, 12,
+               comboColor, 2);
+      if (combat.comboCount >= 3)
+        TextUtils::drawOutlined("K -> FINISHER!", 20, 84, 10,
+                 Color{255, 180, 30, alpha}, 1);
+    }
+    // Parry indicator
+    if (combat.currentState == AttackState::PARRY_ACTIVE) {
+      TextUtils::drawOutlined("PARRY!", 20, 68, 14,
+               Color{200, 230, 255, 255}, 2);
+    }
+  }
+
   // Special cooldown — only when on cooldown so the screen stays clean.
   if (specialCooldownTimer > 0.0f) {
-    TextUtils::drawOutlined(TextFormat("L: %.1fs", specialCooldownTimer), 20, 68, 10,
+    TextUtils::drawOutlined(TextFormat("L: %.1fs", specialCooldownTimer), 20, 102, 10,
              Color{220, 100, 100, 255}, 1);
   }
 }
@@ -1154,7 +1453,6 @@ void Game::drawBossHealthBar() {
                        2.0f, Color{200, 170, 100, 255});
 
   const char *name = bp.bossName.c_str();
-  int nameW = TextUtils::measure(name, 14);
   TextUtils::drawCenteredOutlined(name, barY - 25, 14, Color{230, 190, 100, 255}, screenWidth, 2, Color{0, 0, 0, 255});
 
   TextUtils::draw(TextFormat("Fase %d/%d", bp.currentPhase + 1, bp.totalPhases),
@@ -1328,16 +1626,16 @@ void Game::drawOptions() {
   int ky = kbY + 26;
   Color kc = Color{120, 120, 130, 200};
   TextUtils::draw("WASD  Movimiento", cx - 190, ky, 10, kc);
-  TextUtils::draw("J     Ataque ligero", cx + 30, ky, 10, kc);
+  TextUtils::draw("J     Ataque (combo x3)", cx + 30, ky, 10, kc);
   ky += 16;
-  TextUtils::draw("K     Ataque pesado", cx - 190, ky, 10, kc);
-  TextUtils::draw("L     Especial", cx + 30, ky, 10, kc);
+  TextUtils::draw("K     Pesado / Finisher", cx - 190, ky, 10, kc);
+  TextUtils::draw("F     Parry", cx + 30, ky, 10, kc);
   ky += 16;
   TextUtils::draw("SPACE Dash", cx - 190, ky, 10, kc);
-  TextUtils::draw("I     Inventario", cx + 30, ky, 10, kc);
+  TextUtils::draw("L     Especial", cx + 30, ky, 10, kc);
   ky += 16;
-  TextUtils::draw("TAB   Estadisticas", cx - 190, ky, 10, kc);
-  TextUtils::draw("H     Habilidades", cx + 30, ky, 10, kc);
+  TextUtils::draw("I     Inventario", cx - 190, ky, 10, kc);
+  TextUtils::draw("TAB   Info / H Habs", cx + 30, ky, 10, kc);
 
   TextUtils::drawCentered("[ESC] Volver", screenHeight - 30, 8,
            Color{80, 80, 80, 255}, screenWidth);
@@ -1352,7 +1650,7 @@ void Game::drawGameOver() {
                            (float)screenHeight / bgTex.height);
     DrawTexturePro(bgTex, {0, 0, (float)bgTex.width, (float)bgTex.height},
                    {0, 0, bgTex.width * scale, bgTex.height * scale},
-                   {0, 0}, 0.0f, Color{100, 40, 40, 255});
+                   {0, 0}, 0.0f, Color{40, 40, 40, 255}); // Removed red tint
     DrawRectangle(0, 0, screenWidth, screenHeight, Color{0, 0, 0, 180});
   }
 
@@ -1489,14 +1787,26 @@ void Game::startGame(int characterIndex) {
   registry.addComponent<Transform2D>(playerEntity, screenWidth / 2.0f,
                                      screenHeight / 2.0f);
 
+  // Frame sizes per class
+  float fw = 48.0f, fh = 56.0f;
+  if (charId == "rogue") { fw = 40.0f; fh = 52.0f; }
+  else if (charId == "knight") { fw = 52.0f; fh = 60.0f; }
+
   // Load class-specific sprite
-  std::string spritePath = "assets/sprites/player/" + charId + "_idle.png";
-  Texture2D tex = ResourceManager::getInstance().getTexture(spritePath);
+  std::string spriteBase = "assets/sprites/player/" + charId;
+  Texture2D tex = ResourceManager::getInstance().getTexture(spriteBase + "_idle.png");
   registry.addComponent<Sprite>(playerEntity, tex,
-                                Rectangle{0, 0, 48, 56}, 10);
-  registry.addComponent<Animation>(playerEntity, 2, 0.4f, 48.0f, 56.0f);
+                                Rectangle{0, 0, fw, fh}, 10);
+  registry.addComponent<Animation>(playerEntity, 6, 0.15f, fw, fh);
+
+  // Multi-state animation clips
+  auto &animState = registry.addComponent<AnimState>(playerEntity);
+  animState.addClip(AnimStateType::IDLE, spriteBase + "_idle.png", 6, 0.15f, fw, fh);
+  animState.addClip(AnimStateType::RUN, spriteBase + "_run.png", 8, 0.09f, fw, fh);
+  animState.addClip(AnimStateType::ATTACK, spriteBase + "_attack.png", 6, 0.07f, fw, fh, false);
+
   registry.addComponent<Velocity>(playerEntity, 0.0f, 0.0f);
-  registry.addComponent<Collider>(playerEntity, 36.0f, 50.0f, false);
+  registry.addComponent<Collider>(playerEntity, fw * 0.75f, fh * 0.9f, false);
   registry.addComponent<Health>(playerEntity, hp);
   registry.addComponent<Stamina>(playerEntity, stam, stamRegen, 1.0f);
   registry.addComponent<Combat>(playerEntity, damage, 150.0f);
@@ -1538,11 +1848,19 @@ void Game::startGame(int characterIndex) {
   currentRoom = 0;
   bossEntity = NULL_ENTITY;
   specialCooldownTimer = 0.0f;
+  shopInitialized = false;
+  ashParticles.clear();
+  abilityChoices.clear();
+  enemiesAlive = 0;
+  roomCleared = false;
+
+  // Generate the run map and spawn the first room
+  runMap.generate();
   state = GameState::PLAYING;
   screenEffects.startFadeIn(0.5f);
   AudioManager::getInstance().playSFX("game_start");
   AudioManager::getInstance().playMusic("circle_7");
-  spawnRoom();
+  spawnRoomFromNode(runMap.current());
 }
 
 void Game::drawCharacterSelect() {
@@ -1650,26 +1968,26 @@ void Game::drawCharacterSelect() {
     while (TextUtils::measure(statLine1, sfs) > contentW && sfs > 6) sfs--;
     
     int st1W = TextUtils::measure(statLine1, sfs);
-    TextUtils::draw(statLine1, cx + (cardW - st1W) / 2, textY, sfs, Color{120, 200, 120, 255});
+    TextUtils::draw(statLine1, cx + (cardW - st1W) / 2, textY, sfs, Color{180, 180, 180, 255});
     textY += sfs + 3;
     
     int st2W = TextUtils::measure(statLine2, sfs);
-    TextUtils::draw(statLine2, cx + (cardW - st2W) / 2, textY, sfs, Color{120, 200, 120, 255});
+    TextUtils::draw(statLine2, cx + (cardW - st2W) / 2, textY, sfs, Color{180, 180, 180, 255});
     textY += sfs + 14;
 
     // Description — dynamically wrapped
     int descSize = 8;
     std::string desc = c.value("description", "");
-    textY = TextUtils::drawWrapped(desc.c_str(), cx + innerPad + 12, textY, descSize,
-                                   Color{160, 160, 160, 255}, contentW - 24);
+    textY = TextUtils::drawWrapped(desc.c_str(), cx + innerPad, textY, descSize,
+                                   Color{160, 160, 160, 255}, contentW);
 
     textY += 6;
 
     // Special ability — dynamically wrapped
     std::string special = c.value("special", "");
     if (!special.empty()) {
-      textY = TextUtils::drawWrapped(special.c_str(), cx + innerPad + 12, textY, descSize,
-                                     Color{220, 190, 110, 255}, contentW - 24);
+      textY = TextUtils::drawWrapped(special.c_str(), cx + innerPad, textY, descSize,
+                                     Color{220, 190, 110, 255}, contentW);
     }
 
     // Selection glow
@@ -1698,7 +2016,7 @@ void Game::drawAbilitySelect() {
 
   // Background panel
   int mainW = 420, mainH = 520;
-  int mainX = (screenWidth - mainW) / 2, mainY = 30;
+  int mainX = (screenWidth - mainW) / 2, mainY = (screenHeight - mainH) / 2;
   drawUIPanel(mainX, mainY, mainW, mainH, Color{12, 12, 22, 230},
               Color{160, 130, 60, 255});
 
@@ -1929,6 +2247,7 @@ void Game::recalculatePlayerStats() {
   if (ps.finalLifesteal > 1.0f) ps.finalLifesteal = 1.0f;
   if (ps.finalDamage < 1) ps.finalDamage = 1;
   if (ps.finalMaxHP < 10) ps.finalMaxHP = 10;
+  if (ps.finalSpeed > ps.baseSpeed * 2.0f) ps.finalSpeed = ps.baseSpeed * 2.0f; // cap at 2x base
 
   // Apply final stats to actual components
   if (registry.hasComponent<Health>(playerEntity)) {
@@ -2116,7 +2435,6 @@ void Game::drawInfoMenu() {
 
   int colW = (mainW - 70) / 2;
   int leftX = mainX + 35;
-  int rightX = mainX + 35 + colW;
   int topY = mainY + 65;
   int bottomLimit = mainY + mainH - 35;
 
@@ -2134,8 +2452,9 @@ void Game::drawInfoMenu() {
     struct Bind { const char *key; const char *desc; };
     Bind binds[] = {
       {"WASD",   "Moverse"},
-      {"J",      "Ataque ligero"},
-      {"K",      "Ataque pesado"},
+      {"J",      "Ataque ligero (combo x3)"},
+      {"K",      "Ataque pesado / Finisher"},
+      {"F",      "Parry (anula dano)"},
       {"L",      "Especial de clase"},
       {"SPACE",  "Esquivar (i-frames)"},
       {"E",      "Interactuar"},
@@ -2361,7 +2680,7 @@ static void drawScaledNPatch(Texture2D tex, Rectangle dst, int srcBorder, int ds
 // UI Panel — draws a panel with the art texture using scaled 9-patch
 // =============================================================================
 void Game::drawUIPanel(int x, int y, int w, int h, Color fallbackBg,
-                       Color borderCol) {
+                       Color /*borderCol*/) {
   Texture2D panelTex = ResourceManager::getInstance().getTexture(
       "assets/art/ui_panel.png");
   if (panelTex.id > 0) {
@@ -2413,6 +2732,7 @@ void Game::updateAtmosphericParticles(float deltaTime) {
                         (unsigned char)GetRandomValue(55, 90),
                         (unsigned char)GetRandomValue(50, 80),
                         (unsigned char)GetRandomValue(80, 150)};
+      p.frameIndex = GetRandomValue(0, 3);
       ashParticles.push_back(p);
     }
   }
@@ -2433,11 +2753,22 @@ void Game::updateAtmosphericParticles(float deltaTime) {
 }
 
 void Game::renderAtmosphericParticles() {
+  auto &res = ResourceManager::getInstance();
+  Texture2D ashTex = res.getTexture("assets/sprites/particles/ash_particle.png");
+  bool hasTexture = (ashTex.id > 0);
+
   for (auto &p : ashParticles) {
     float alpha = (p.life / p.maxLife);
     Color c = p.color;
     c.a = (unsigned char)(c.a * alpha);
-    DrawRectangle((int)p.x, (int)p.y, (int)p.size, (int)p.size, c);
+
+    if (hasTexture) {
+      Rectangle src = {(float)(p.frameIndex * 8), 0.0f, 8.0f, 8.0f};
+      Rectangle dest = {p.x, p.y, p.size * 4.0f, p.size * 4.0f};
+      DrawTexturePro(ashTex, src, dest, {0, 0}, 0.0f, c);
+    } else {
+      DrawRectangle((int)p.x, (int)p.y, (int)p.size, (int)p.size, c);
+    }
   }
 }
 
@@ -2520,6 +2851,271 @@ void Game::drawAbilitiesView() {
     std::string truncAb = TextUtils::truncate(ab.name, 10, 300);
     TextUtils::draw(truncAb.c_str(), 30, y, 10, rarityColor);
     y += 16;
+  }
+}
+
+// =============================================================================
+// Map Select — DAG graph with room nodes
+// =============================================================================
+void Game::drawMapSelect() {
+  DrawRectangle(0, 0, screenWidth, screenHeight, Color{5, 5, 15, 255});
+
+  int mainW = 500, mainH = 520;
+  int mainX = (screenWidth - mainW) / 2, mainY = 20;
+  drawUIPanel(mainX, mainY, mainW, mainH, Color{12, 12, 22, 230},
+              Color{160, 130, 60, 255});
+
+  TextUtils::drawCenteredOutlined("MAPA DE LA MAZMORRA", mainY + 35, 20,
+           Color{220, 180, 100, 255}, screenWidth, 2);
+
+  // Draw layers top-to-bottom
+  int layerCount = runMap.totalLayers();
+  int graphY = mainY + 70;
+  int graphH = mainH - 130;
+  int layerSpacing = (layerCount > 1) ? graphH / (layerCount - 1) : 0;
+
+  // First pass: compute positions for connection lines
+  struct NodePos { float x, y; };
+  std::vector<std::vector<NodePos>> positions(layerCount);
+  for (int l = 0; l < layerCount; l++) {
+    int count = (int)runMap.layers[l].size();
+    int totalW = count * 60 + (count - 1) * 40;
+    int startX = (screenWidth - totalW) / 2;
+    for (int n = 0; n < count; n++) {
+      float nx = (float)(startX + n * 100 + 30);
+      float ny = (float)(graphY + l * layerSpacing);
+      positions[l].push_back({nx, ny});
+    }
+  }
+
+  // Draw connection lines
+  for (int l = 0; l < layerCount - 1; l++) {
+    for (int n = 0; n < (int)runMap.layers[l].size(); n++) {
+      auto &node = runMap.layers[l][n];
+      for (int conn : node.connections) {
+        if (conn < (int)positions[l + 1].size()) {
+          Color lineCol = (node.visited || node.current)
+                              ? Color{120, 120, 120, 200}
+                              : Color{50, 50, 50, 120};
+          DrawLineEx({positions[l][n].x, positions[l][n].y + 15},
+                     {positions[l + 1][conn].x, positions[l + 1][conn].y - 15},
+                     2.0f, lineCol);
+        }
+      }
+    }
+  }
+
+  // Draw nodes
+  auto choices = runMap.nextChoices();
+  for (int l = 0; l < layerCount; l++) {
+    for (int n = 0; n < (int)runMap.layers[l].size(); n++) {
+      auto &node = runMap.layers[l][n];
+      float nx = positions[l][n].x;
+      float ny = positions[l][n].y;
+      int radius = 14;
+
+      Color col = node.color();
+      if (node.visited) col = Color{(unsigned char)(col.r / 3), (unsigned char)(col.g / 3), (unsigned char)(col.b / 3), 200};
+
+      bool isCursor = false;
+      if (l == runMap.currentLayer + 1) {
+        // This is the next layer — check if this node is under cursor
+        for (int ci = 0; ci < (int)choices.size(); ci++) {
+          if (choices[ci] == n && ci == runMap.cursorIndex)
+            isCursor = true;
+        }
+      }
+
+      if (node.current) {
+        // Current node: glowing ring
+        DrawCircle((int)nx, (int)ny, radius + 4, Color{255, 255, 255, 60});
+        DrawCircle((int)nx, (int)ny, radius, col);
+        DrawCircleLines((int)nx, (int)ny, radius, WHITE);
+      } else if (isCursor) {
+        // Selectable node under cursor: bright + pulsing
+        float pulse = 0.7f + 0.3f * sinf((float)GetTime() * 5.0f);
+        Color bright = {(unsigned char)(col.r * pulse), (unsigned char)(col.g * pulse),
+                        (unsigned char)(col.b * pulse), 255};
+        DrawCircle((int)nx, (int)ny, radius + 2, Color{220, 180, 100, 100});
+        DrawCircle((int)nx, (int)ny, radius, bright);
+        DrawCircleLines((int)nx, (int)ny, radius, Color{220, 180, 100, 255});
+        // Label below
+        const char *lbl = node.label();
+        int tw = TextUtils::measure(lbl, 10);
+        TextUtils::draw(lbl, (int)nx - tw / 2, (int)ny + radius + 6, 10,
+                 Color{220, 180, 100, 255});
+      } else {
+        DrawCircle((int)nx, (int)ny, radius, col);
+        if (!node.visited) {
+          const char *lbl = node.label();
+          int tw = TextUtils::measure(lbl, 10);
+          TextUtils::draw(lbl, (int)nx - tw / 2, (int)ny + radius + 6, 10,
+                   Color{150, 150, 150, 180});
+        }
+      }
+    }
+  }
+
+  // Legend
+  int legendY = mainY + mainH - 45;
+  const char *legend[] = {"Combate", "Elite", "Tienda", "Descanso", "Jefe"};
+  Color legendCol[] = {
+      Color{200, 60, 60, 255}, Color{220, 180, 40, 255}, Color{60, 180, 60, 255},
+      Color{60, 120, 220, 255}, Color{200, 40, 200, 255}};
+  int lx = mainX + 40;
+  for (int i = 0; i < 5; i++) {
+    DrawCircle(lx, legendY + 5, 5, legendCol[i]);
+    TextUtils::draw(legend[i], lx + 10, legendY - 2, 9, Color{150, 150, 150, 200});
+    lx += TextUtils::measure(legend[i], 9) + 25;
+  }
+
+  // Controls
+  TextUtils::drawCentered("[A/D] Elegir  [ENTER] Entrar",
+           screenHeight - 30, 12, Color{120, 120, 120, 255}, screenWidth);
+
+  // Layer indicator
+  TextUtils::drawCentered(TextFormat("Capa %d / %d", runMap.currentLayer + 1, layerCount),
+           mainY + 55, 10, Color{100, 100, 100, 200}, screenWidth);
+}
+
+// =============================================================================
+// Shop — spend HP for abilities
+// =============================================================================
+void Game::drawShop() {
+  // Semi-transparent overlay
+  DrawRectangle(0, 0, screenWidth, screenHeight, Color{5, 5, 15, 180});
+
+  int mainW = 420, mainH = 440;
+  int mainX = (screenWidth - mainW) / 2, mainY = 40;
+  drawUIPanel(mainX, mainY, mainW, mainH, Color{22, 12, 12, 230},
+              Color{180, 80, 40, 255});
+
+  TextUtils::drawCenteredOutlined("TIENDA INFERNAL", mainY + 35, 20,
+           Color{220, 120, 40, 255}, screenWidth, 2);
+
+  // HP cost info
+  int cost = 0;
+  int currentHP = 0;
+  if (registry.hasComponent<Health>(playerEntity)) {
+    auto &hp = registry.getComponent<Health>(playerEntity);
+    cost = hp.maxHP / 10;
+    currentHP = hp.currentHP;
+  }
+  TextUtils::drawCentered(TextFormat("Coste: %d HP  |  Tu HP: %d", cost, currentHP),
+           mainY + 62, 11, Color{200, 100, 100, 255}, screenWidth);
+
+  int cardW = 360, cardH = 80;
+  int startY = mainY + 85;
+  int itemCount = (int)shopItems.size();
+
+  for (int i = 0; i < itemCount; i++) {
+    auto &ab = shopItems[i];
+    int cardX = (screenWidth - cardW) / 2;
+    int cardY = startY + i * (cardH + 10);
+
+    Color rarityCol = Color{180, 180, 180, 255};
+    if (ab.rarity == AbilityRarity::RARE)
+      rarityCol = Color{80, 140, 255, 255};
+    else if (ab.rarity == AbilityRarity::EPIC)
+      rarityCol = Color{200, 80, 255, 255};
+
+    bool sel = (i == selectedAbility);
+    DrawRectangle(cardX, cardY, cardW, cardH,
+                  sel ? Color{50, 30, 20, 255} : Color{25, 15, 12, 255});
+    DrawRectangleLines(cardX, cardY, cardW, cardH,
+                       sel ? Color{220, 120, 40, 255} : rarityCol);
+
+    if (sel)
+      TextUtils::draw(">", cardX - 12, cardY + cardH / 2 - 8, 16,
+               Color{220, 120, 40, 255});
+
+    std::string nameStr = TextUtils::truncate(ab.name, 14, cardW - 80);
+    TextUtils::draw(nameStr.c_str(), cardX + 15, cardY + 10, 13, rarityCol);
+    TextUtils::drawWrapped(ab.description.c_str(), cardX + 15, cardY + 30, 10, WHITE,
+                    cardW - 40);
+  }
+
+  TextUtils::drawCentered("[W/S] Elegir  [ENTER] Comprar  [ESC] Salir",
+           screenHeight - 40, 12, Color{120, 120, 120, 255}, screenWidth);
+}
+
+// =============================================================================
+// Rest — heal 30% max HP
+// =============================================================================
+void Game::drawRest() {
+  // Semi-transparent overlay
+  DrawRectangle(0, 0, screenWidth, screenHeight, Color{5, 5, 15, 180});
+
+  int mainW = 360, mainH = 240;
+  int mainX = (screenWidth - mainW) / 2, mainY = (screenHeight - mainH) / 2 - 30;
+  drawUIPanel(mainX, mainY, mainW, mainH, Color{20, 12, 12, 230},
+              Color{180, 130, 60, 255});
+
+  TextUtils::drawCenteredOutlined("SALA DE DESCANSO", mainY + 35, 20,
+           Color{220, 180, 100, 255}, screenWidth, 2);
+
+  // Current HP display
+  if (registry.hasComponent<Health>(playerEntity)) {
+    auto &hp = registry.getComponent<Health>(playerEntity);
+    int heal = hp.maxHP * 3 / 10;
+    int newHP = std::min(hp.currentHP + heal, hp.maxHP);
+
+    TextUtils::drawCentered(TextFormat("HP actual: %d / %d", hp.currentHP, hp.maxHP),
+             mainY + 80, 14, Color{200, 200, 200, 255}, screenWidth);
+
+    // Show heal preview
+    TextUtils::drawCentered(TextFormat("Curacion: +%d HP", heal),
+             mainY + 105, 14, Color{80, 220, 80, 255}, screenWidth);
+    TextUtils::drawCentered(TextFormat("HP despues: %d / %d", newHP, hp.maxHP),
+             mainY + 130, 12, Color{150, 200, 150, 200}, screenWidth);
+  }
+
+  // Pulsing prompt
+  float alpha = 150 + 80 * sinf((float)GetTime() * 3.0f);
+  TextUtils::drawCentered("[ENTER] Descansar",
+           mainY + mainH - 65, 16,
+           Color{220, 180, 100, (unsigned char)alpha}, screenWidth);
+  TextUtils::drawCentered("[ESC] Continuar sin descansar",
+           mainY + mainH - 40, 11, Color{120, 110, 100, 200}, screenWidth);
+}
+
+// =============================================================================
+// Minimap — small overlay during PLAYING
+// =============================================================================
+void Game::drawMinimap() {
+  // Small minimap in top-right corner showing run progress
+  int mapW = 120, mapH = 30;
+  int mapX = screenWidth - mapW - 10, mapY = 10;
+
+  DrawRectangle(mapX - 2, mapY - 2, mapW + 4, mapH + 4, Color{0, 0, 0, 150});
+
+  int layerCount = runMap.totalLayers();
+  if (layerCount <= 0) return;
+
+  int nodeSpacing = mapW / layerCount;
+  for (int l = 0; l < layerCount; l++) {
+    float cx = (float)(mapX + l * nodeSpacing + nodeSpacing / 2);
+    float cy = (float)(mapY + mapH / 2);
+    int r = 4;
+
+    if (l < runMap.currentLayer) {
+      // Completed layer
+      DrawCircle((int)cx, (int)cy, r, Color{80, 80, 80, 200});
+    } else if (l == runMap.currentLayer) {
+      // Current layer — bright
+      Color col = runMap.current().color();
+      DrawCircle((int)cx, (int)cy, r + 1, col);
+      DrawCircleLines((int)cx, (int)cy, r + 1, WHITE);
+    } else {
+      // Future layer
+      DrawCircle((int)cx, (int)cy, r, Color{40, 40, 40, 150});
+    }
+
+    // Connection line to next
+    if (l < layerCount - 1) {
+      float nx = (float)(mapX + (l + 1) * nodeSpacing + nodeSpacing / 2);
+      DrawLineEx({cx + r + 1, cy}, {nx - r - 1, cy}, 1.0f, Color{50, 50, 50, 150});
+    }
   }
 }
 

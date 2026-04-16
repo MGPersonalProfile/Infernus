@@ -14,8 +14,10 @@ enum class InputAction {
   DASH,
   INTERACT,
   SPECIAL_ATTACK,
+  PARRY,
   OPEN_INVENTORY,
-  OPEN_INFO
+  OPEN_INFO,
+  OPEN_ABILITIES
 };
 
 class InputManager {
@@ -32,8 +34,10 @@ public:
     keyBinds[InputAction::DASH] = KEY_SPACE;
     keyBinds[InputAction::INTERACT] = KEY_E;
     keyBinds[InputAction::SPECIAL_ATTACK] = KEY_L;
+    keyBinds[InputAction::PARRY] = KEY_F;
     keyBinds[InputAction::OPEN_INVENTORY] = KEY_I;
     keyBinds[InputAction::OPEN_INFO] = KEY_TAB;
+    keyBinds[InputAction::OPEN_ABILITIES] = KEY_H;
 
     // Default Gamepad Bindings (Preparing Interface)
     padBinds[InputAction::MOVE_UP] = GAMEPAD_BUTTON_LEFT_FACE_UP;
@@ -50,6 +54,8 @@ public:
         GAMEPAD_BUTTON_RIGHT_FACE_RIGHT; // B on Xbox
     padBinds[InputAction::SPECIAL_ATTACK] =
         GAMEPAD_BUTTON_LEFT_TRIGGER_1; // LB on Xbox
+    padBinds[InputAction::PARRY] =
+        GAMEPAD_BUTTON_RIGHT_TRIGGER_1; // RB on Xbox
   }
 
   // Check if key/button for action is currently held down

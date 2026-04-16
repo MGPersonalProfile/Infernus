@@ -1,0 +1,8 @@
+{
+    "name": "palette_check",
+    "description": "Verificar coherencia de paleta en assets",
+    "default_priority": "medium",
+    "required_params": ["files"],
+    "task_template": "Revisa la coherencia de paleta en los siguientes archivos: {{files}}. Verifica que todos siguen la paleta del Circulo VII: Sangre (#8B0000), Ceniza (#2B2B2B), Lava (#CC4400), Negro (#0A0A0A), Highlight (#FF2200), Dorado (#DAA520). Reporta cualquier inconsistencia.",
+    "context_template": "Referencia de paleta en assets/art/palette_reference.png. {{extra_context}}"
+}

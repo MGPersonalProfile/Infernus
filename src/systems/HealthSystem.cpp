@@ -111,7 +111,7 @@ void HealthSystem::spawnItemPickup(Registry &registry, float x, float y) {
 
 void HealthSystem::spawnDeathParticles(Registry &registry, float x, float y) {
   auto &res = ResourceManager::getInstance();
-  Texture2D tex = res.getTexture("assets/sprites/fx/hit_particle.png");
+  Texture2D bloodTex = res.getTexture("assets/sprites/particles/blood_drop.png");
 
   int count = GetRandomValue(Constants::DEATH_PARTICLES_MIN,
                              Constants::DEATH_PARTICLES_MAX);
@@ -121,7 +121,10 @@ void HealthSystem::spawnDeathParticles(Registry &registry, float x, float y) {
     registry.addComponent<Velocity>(p, (float)GetRandomValue(-400, 400),
                                     (float)GetRandomValue(-400, 400));
     registry.addComponent<Lifetime>(p, Constants::DEATH_PARTICLE_LIFETIME);
-    registry.addComponent<Sprite>(p, tex, Rectangle{0, 0, 4, 4}, 0);
+    // blood_drop.png: 24x8, 3 frames of 8x8 — pick random frame
+    int frame = GetRandomValue(0, 2);
+    registry.addComponent<Sprite>(p, bloodTex,
+                                  Rectangle{(float)(frame * 8), 0, 8, 8}, 0);
     registry.addComponent<Particle>(p, RED, Color{100, 0, 0, 0}, 1.5f, 0.1f);
   }
 }

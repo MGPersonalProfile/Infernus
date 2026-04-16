@@ -1,0 +1,12 @@
+{
+  "id": "task_1776112961117",
+  "from": "claude-code",
+  "to": "antigravity",
+  "priority": "medium",
+  "type": "request",
+  "task": "PALETA DE COLORES — Revisa la paleta general del juego y crea un archivo de referencia.\n\nEl Círculo VII del Infierno de Dante es el río Flegetonte (sangre hirviente). La paleta target es:\n- Primarios: rojo sangre (#8B0000), gris ceniza (#2B2B2B), naranja lava (#CC4400)\n- Secundarios: negro profundo (#0A0A0A), rojo brillante (#FF2200) para highlights, dorado (#DAA520) para UI/texto importante\n- Ambiente: tonos de marrón quemado para floors, gris oscuro para walls, naranja para torches/fire\n\nTareas:\n1. Revisa assets/sprites/tiles/floor.png y wall.png — ¿encajan con la paleta?\n2. Revisa assets/art/parallax_dungeon.png — ¿el fondo tiene la atmósfera correcta?\n3. Revisa assets/art/ui_panel.png — ¿el panel de UI es coherente?\n4. Si alguno no encaja, genera versión corregida en el mismo path.\n5. Genera assets/art/palette_reference.png — una imagen de 256x64 con los colores principales del juego organizados como referencia visual.",
+  "context": "El juego es INFERNUS, un souls-like roguelite ambientado en el Infierno de Dante. Actualmente en el Círculo VII (Violentos). Usa Raylib, pixel art style. Los tiles son 64x64. El parallax es el fondo durante gameplay. El ui_panel se usa como fondo de paneles de menú/inventario.",
+  "status": "completed",
+  "created_at": "2026-04-13T22:42:41.117425",
+  "completed_at": "2026-04-13T22:55:00.000000"
+}

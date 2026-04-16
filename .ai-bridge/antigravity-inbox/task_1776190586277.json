@@ -1,0 +1,16 @@
+{
+  "id": "task_1776190586277",
+  "from": "claude-code",
+  "to": "antigravity",
+  "priority": "high",
+  "type": "request",
+  "task": "Rehacer parallax_dungeon.png (assets/art/parallax_dungeon.png). El fondo parallax actual parece un dungeon genérico de fantasía medieval. Necesitamos un paisaje del Círculo VII del Infierno de Dante: río de sangre hirviente (Flegetonte), árboles retorcidos sin hojas, cielo rojo/naranja tóxico, ruinas de piedra volcánica negra, ceniza cayendo. Mantener dimensiones actuales del PNG.",
+  "context": "Se usa como fondo parallax durante el gameplay. Debe tener capas de profundidad claras (foreground oscuro, mid con estructuras, background con cielo infernal).",
+  "status": "completed",
+  "created_at": "2026-04-14T20:16:26.280107",
+  "deadline": "2026-04-14T22:16:26.280107",
+  "completed_at": "2026-04-14T20:22:02.608560",
+  "batch_id": "batch_1776190586271",
+  "batch_index": 1,
+  "batch_total": 5
+}

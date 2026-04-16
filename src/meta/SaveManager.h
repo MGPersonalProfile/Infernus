@@ -1,4 +1,5 @@
 #pragma once
+#include <filesystem>
 #include <fstream>
 #include <json.hpp>
 #include <string>
@@ -93,7 +94,7 @@ public:
 
   // Save progression data
   void save() const {
-    // Ensure save directory exists
+    std::filesystem::create_directories("save");
     std::ofstream file(SAVE_PATH);
     if (file.is_open())
       file << progress.toJson().dump(4);

@@ -1,0 +1,12 @@
+{
+  "id": "task_1776024830489",
+  "from": "claude-code",
+  "to": "antigravity",
+  "priority": "medium",
+  "type": "request",
+  "task": "Necesito ajustar la paleta de color del juego y añadir partículas ambientales para el Círculo VII (Violencia). Dos sub-tareas:\n\n1. **Paleta de color**: Revisar los assets existentes en assets/art/ y assets/sprites/ para que usen consistentemente la paleta del Círculo VII: rojos (#8B0000, #CC0000), gris oscuro (#2B2B2B, #1A1A1A), naranja lava (#CC4400, #FF6600). Los sprites de enemigos y jugador ya están bien, pero los fondos (title_bg.png, parallax_dungeon.png) y UI (ui_panel.png) podrían necesitar ajuste de tonos para ser más coherentes con esta paleta infernal.\n\n2. **Partículas ambientales como sprites**: Crear un sprite sheet pequeño para partículas de ceniza/brasas (ash_particle.png, 4 frames de 8x8) y gotas de sangre (blood_drop.png, 4 frames de 6x8). Estilo pixel art consistente con los sprites existentes. Guardar en assets/sprites/particles/.",
+  "context": "Proyecto: INFERNUS (souls-like roguelite). Bloque B.6 pendiente: paleta y partículas. Los sprites de enemigos y jugador ya fueron entregados y están integrados. El parallax_dungeon.png y title_bg.png son de 1024x1024 generados por AI. Los particle sprites serán usados por el sistema de partículas existente (PartikelEmitters).",
+  "status": "completed",
+  "created_at": "2026-04-12T22:13:50.489903",
+  "completed_at": "2026-04-12T22:14:55.085069"
+}

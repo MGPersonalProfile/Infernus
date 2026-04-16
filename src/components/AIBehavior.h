@@ -43,6 +43,9 @@ struct AIBehavior : public Component {
   // --- Attack ---
   float attackWindup = 0.4f;
 
+  // --- Stagger ---
+  float staggerDuration = 0.3f; // overridden by parry for longer stagger
+
   // --- Target ---
   Entity targetEntity = NULL_ENTITY;
 

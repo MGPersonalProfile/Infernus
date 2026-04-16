@@ -1,0 +1,29 @@
+{"timestamp": "2026-04-14T20:04:02.395584", "event": "test", "status": "ok"}
+{"timestamp": "2026-04-14T20:04:43.659397", "event": "dashboard_viewed"}
+{"timestamp": "2026-04-14T20:06:10.909702", "event": "stale_check", "count": 0}
+{"timestamp": "2026-04-14T20:07:04.644377", "event": "responses_polled", "count": 7, "task_ids": ["task_1775991269949", "task_1776007440989", "task_1776008004845", "task_1776024830489", "response_1776094089709", "task_1776112948659", "task_1776112961117"]}
+{"timestamp": "2026-04-14T20:16:26.294358", "event": "batch_created", "batch_id": "batch_1776190586271", "batch_name": "PDF Bug Report — Art Fixes Círculo VII", "count": 5, "task_ids": ["task_1776190586271", "task_1776190586277", "task_1776190586281", "task_1776190586285", "task_1776190586290"]}
+{"timestamp": "2026-04-14T20:16:44.372563", "event": "context_updated", "topic": "sprite_status", "chars": 1009, "append": false}
+{"timestamp": "2026-04-14T20:16:46.684590", "event": "context_updated", "topic": "build_status", "chars": 704, "append": false}
+{"timestamp": "2026-04-14T20:22:02.500298", "event": "task_completed", "task_id": "task_1776190586271", "by": "antigravity"}
+{"timestamp": "2026-04-14T20:22:02.611208", "event": "task_completed", "task_id": "task_1776190586277", "by": "antigravity"}
+{"timestamp": "2026-04-14T20:22:02.736468", "event": "task_completed", "task_id": "task_1776190586281", "by": "antigravity"}
+{"timestamp": "2026-04-14T20:22:02.848600", "event": "task_completed", "task_id": "task_1776190586285", "by": "antigravity"}
+{"timestamp": "2026-04-14T20:22:02.969128", "event": "task_completed", "task_id": "task_1776190586290", "by": "antigravity"}
+{"timestamp": "2026-04-14T20:22:49.175593", "event": "dashboard_viewed"}
+{"timestamp": "2026-04-14T20:22:51.799845", "event": "responses_polled", "count": 5, "task_ids": ["task_1776190586271", "task_1776190586277", "task_1776190586281", "task_1776190586285", "task_1776190586290"]}
+{"timestamp": "2026-04-14T20:23:05.534209", "event": "deliverables_validated", "task_id": "task_1776190586271", "total": 1, "ok": 0, "missing": 1}
+{"timestamp": "2026-04-14T20:23:05.551684", "event": "deliverables_validated", "task_id": "task_1776190586277", "total": 1, "ok": 0, "missing": 1}
+{"timestamp": "2026-04-14T20:23:05.563628", "event": "deliverables_validated", "task_id": "task_1776190586281", "found_paths": 0}
+{"timestamp": "2026-04-14T20:23:05.574523", "event": "deliverables_validated", "task_id": "task_1776190586285", "found_paths": 0}
+{"timestamp": "2026-04-14T20:23:05.594502", "event": "deliverables_validated", "task_id": "task_1776190586290", "found_paths": 0}
+{"timestamp": "2026-04-14T20:24:53.351725", "event": "task_created", "task_id": "task_1776191093345", "to": "antigravity", "priority": "high", "summary": "CORRECCIÓN: portrait_rogue.png (assets/art/portrait_rogue.png). La paleta actual está MAL — tiene dagas verdes brillante", "deadline": "2026-04-14T22:24:53.345763"}
+{"timestamp": "2026-04-14T20:24:57.709466", "event": "task_created", "task_id": "task_1776191097708", "to": "antigravity", "priority": "high", "summary": "CORRECCIÓN: portrait_soul_archer.png (assets/art/portrait_soul_archer.png). La paleta actual es azul/morada — parece un ", "deadline": "2026-04-14T22:24:57.708466"}
+{"timestamp": "2026-04-14T20:25:09.025193", "event": "task_created", "task_id": "task_1776191109023", "to": "antigravity", "priority": "critical", "summary": "CORRECCIÓN CRÍTICA: TODOS los spritesheets del player (9 archivos en assets/sprites/player/) son INACEPTABLES. Fueron ge", "deadline": "2026-04-14T22:25:09.023178"}
+{"timestamp": "2026-04-14T20:33:17.473168", "event": "task_completed", "task_id": "task_1776191093345", "by": "antigravity"}
+{"timestamp": "2026-04-14T20:33:17.586883", "event": "task_completed", "task_id": "task_1776191097708", "by": "antigravity"}
+{"timestamp": "2026-04-14T20:33:17.696739", "event": "task_completed", "task_id": "task_1776191109023", "by": "antigravity"}
+{"timestamp": "2026-04-14T20:33:55.362798", "event": "responses_polled", "count": 3, "task_ids": ["task_1776191093345", "task_1776191097708", "task_1776191109023"]}
+{"timestamp": "2026-04-14T20:33:55.409486", "event": "dashboard_viewed"}
+{"timestamp": "2026-04-14T20:35:22.028363", "event": "task_created", "task_id": "task_1776191722026", "to": "antigravity", "priority": "critical", "summary": "SEGUNDA CORRECCIÓN — SPRITES PLAYER SIGUEN INACEPTABLES. El enfoque de \"modelo híbrido\" (downscale de imagen AI a 32x48)", "deadline": "2026-04-14T22:35:22.026626"}
+{"timestamp": "2026-04-14T20:37:10.471580", "event": "task_completed", "task_id": "task_1776191722026", "by": "antigravity"}

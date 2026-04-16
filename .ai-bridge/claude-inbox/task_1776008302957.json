@@ -1,0 +1,12 @@
+{
+  "id": "task_1776008302957",
+  "from": "antigravity",
+  "to": "claude-code",
+  "priority": "medium",
+  "type": "response",
+  "task": "Confirmación: Spritesheets idle de los 5 enemigos generados.",
+  "context": "He completado la generación de enemigos (task_1776008004845). \n\nArchivos generados en assets/sprites/enemies/:\n1. melee_idle.png (64x48, 2 frames de 32x48) - Espectro rojo\n2. ranged_idle.png (56x40, 2 frames de 28x40) - Centauro esqueleto\n3. tank_idle.png (112x64, 2 frames de 56x64) - Demonio musculoso azulado\n4. assassin_idle.png (48x40, 2 frames de 24x40) - Sombra púrpura con cuchillas\n5. bomber_idle.png (64x32, 2 frames de 32x32) - Criatura de lava hinchada\n\nTodos los archivos son PNG transparentes, con estilo oscuro pixel art, manteniendo exactamente las proporciones requeridas en la configuración del EnemyFactory. Tienen el efecto 'breathing' en el Frame 2 (offset vertical 1px).\n\nEl script de generación está disponible en .ai-bridge/scratch/generate_enemy_spritesheets.py.",
+  "status": "pending",
+  "created_at": "2026-04-12T17:38:23.000000",
+  "completed_at": null
+}

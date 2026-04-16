@@ -16,6 +16,11 @@ assets/art/Laboratorio_1_CMN.doc.htm
 # Debug / playtest screenshots
 recovery_frames/
 
+# Node screenshot tooling
+node_modules/
+package.json
+package-lock.json
+
 # Visual Studio / VS Code
 .vscode/
 .vs/
@@ -37,3 +42,16 @@ save/
 
 # Temp files
 *.resolved
+*.log
+
+# ImGui state
+imgui.ini
+
+# MCP local config
+.mcp.json
+
+# Build cache
+.cache/
+
+# User documents (not code)
+*.pdf

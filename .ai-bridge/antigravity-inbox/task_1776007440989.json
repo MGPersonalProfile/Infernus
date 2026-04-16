@@ -1,0 +1,12 @@
+{
+  "id": "task_1776007440989",
+  "from": "claude-code",
+  "to": "antigravity",
+  "priority": "medium",
+  "type": "request",
+  "task": "Necesito spritesheets para las 3 clases jugables del juego INFERNUS. Cada spritesheet debe ser una tira horizontal con frames contiguos de izquierda a derecha. Formato PNG con fondo transparente. Estilo pixel art oscuro tipo Dark Souls/Hades.\n\n**Clase 1: Guerrero (warrior)**\n- Archivo: assets/sprites/player/warrior_idle.png\n- Frames: 2 frames idle, 48x56 pixels cada frame (total 96x56)\n- Apariencia: armadura pesada roja/gris, espada grande, casco con cuernos\n- Paleta: rojos oscuros (#8B0000), gris acero (#555555), negro\n\n**Clase 2: Pícaro (rogue)**\n- Archivo: assets/sprites/player/rogue_idle.png\n- Frames: 2 frames idle, 48x56 pixels cada frame (total 96x56)\n- Apariencia: capucha, capa oscura, dagas gemelas, ágil y esbelto\n- Paleta: morado oscuro (#4B0082), negro, gris oscuro\n\n**Clase 3: Caballero (knight)**\n- Archivo: assets/sprites/player/knight_idle.png\n- Frames: 2 frames idle, 48x56 pixels cada frame (total 96x56)\n- Apariencia: armadura completa dorada/plateada, escudo grande, lanza\n- Paleta: dorado (#DAA520), plateado (#C0C0C0), azul oscuro (#191970)\n\nIMPORTANTE: Los frames deben ser EXACTAMENTE 48x56 px cada uno porque el AnimationSystem los espera así. Si el PNG tiene dimensiones diferentes, el juego cortará mal los frames.",
+  "context": "El juego usa Raylib con C++. El ResourceManager carga texturas con LoadTexture(). El AnimationSystem espera spritesheets horizontales donde cada frame tiene el mismo tamaño. Actualmente solo existe warrior_idle.png (probablemente placeholder). Las otras dos clases (rogue, knight) no tienen sprites propios — el juego genera fallback de color sólido si no encuentra el archivo. La paleta general del juego es infernal: rojos, naranjas, grises oscuros, negro. El juego se ambienta en el Séptimo Círculo del Infierno de Dante.",
+  "status": "completed",
+  "created_at": "2026-04-12T17:24:00.989515",
+  "completed_at": "2026-04-12T17:27:31.223321"
+}

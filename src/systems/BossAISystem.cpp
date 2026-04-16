@@ -2,6 +2,7 @@
 #include "../debug/Profiler.h"
 #include "../scripting/LuaEngine.h"
 #include "../audio/AudioManager.h"
+#include "../components/AnimState.h"
 #include "../components/BossPhase.h"
 #include "../components/Collider.h"
 #include "../components/Combat.h"
@@ -56,12 +57,23 @@ void BossAISystem::update(Registry &registry, CameraSystem &cameraSystem,
         selectPattern(registry, boss);
       }
       // Face the player while idle
-      if (registry.hasComponent<Transform2D>(playerEntity) &&
+      if (registry.isAlive(playerEntity) &&
+          registry.hasComponent<Transform2D>(playerEntity) &&
           registry.hasComponent<Sprite>(boss)) {
         auto &pt = registry.getComponent<Transform2D>(playerEntity);
         registry.getComponent<Sprite>(boss).flipX = (pt.x < transform.x);
       }
-      return;
+      continue;
+    }
+
+    // AnimState transitions based on current pattern
+    if (registry.hasComponent<AnimState>(boss)) {
+      auto &as = registry.getComponent<AnimState>(boss);
+      if (bp.currentPattern == BossPattern::CHARGE ||
+          bp.currentPattern == BossPattern::ENRAGED_CHARGE)
+        as.setState(AnimStateType::CHARGE);
+      else
+        as.setState(AnimStateType::SLAM);
     }
 
     switch (bp.currentPattern) {
@@ -149,7 +161,7 @@ void BossAISystem::executeCharge(Registry &registry, Entity boss,
 
     if (combat.stateTimer <= 0.0f) {
       // Lock direction toward player
-      if (registry.hasComponent<Transform2D>(player)) {
+      if (registry.isAlive(player) && registry.hasComponent<Transform2D>(player)) {
         auto &pt = registry.getComponent<Transform2D>(player);
         float dx = pt.x - transform.x;
         float dy = pt.y - transform.y;
@@ -161,6 +173,10 @@ void BossAISystem::executeCharge(Registry &registry, Entity boss,
       }
       bp.isCharging = true;
       bp.chargeTimer = 0.6f; // charge duration
+      bp.chargeLastX = transform.x;
+      bp.chargeLastY = transform.y;
+      bp.chargeStuckTimer = 0.0f;
+      bp.chargeHitTimer = 0.0f;
       bp.patternStep = 1;
       combat.currentState = AttackState::ACTIVE;
     }
@@ -173,28 +189,43 @@ void BossAISystem::executeCharge(Registry &registry, Entity boss,
     vel.vy = bp.chargeDirY * speed;
     bp.chargeTimer -= deltaTime;
 
-    // Spawn charge hitbox (moves with boss)
-    {
+    // Spawn charge hitbox every 0.1s (not every frame — reduces entity churn)
+    bp.chargeHitTimer -= deltaTime;
+    if (bp.chargeHitTimer <= 0.0f) {
+      bp.chargeHitTimer = 0.1f;
       int chargeDmg = (int)(combat.baseDamage * bp.current().damageMultiplier);
       Entity chargeHit = registry.createEntity();
       registry.addComponent<Transform2D>(chargeHit, transform.x - 30.0f,
                                          transform.y - 30.0f);
       registry.addComponent<Collider>(chargeHit, 60.0f, 60.0f);
       registry.addComponent<Combat>(chargeHit, chargeDmg, 300.0f, boss);
-      registry.addComponent<Lifetime>(chargeHit, deltaTime * 2.0f);
+      registry.addComponent<Lifetime>(chargeHit, 0.12f);
     }
 
     // Flip sprite
     if (registry.hasComponent<Sprite>(boss))
       registry.getComponent<Sprite>(boss).flipX = (vel.vx < 0.0f);
 
-    if (bp.chargeTimer <= 0.0f) {
-      // Charge done — recovery
+    // Stuck detection: if boss barely moved since last frame, it hit a wall
+    float movedDist = sqrtf((transform.x - bp.chargeLastX) * (transform.x - bp.chargeLastX) +
+                            (transform.y - bp.chargeLastY) * (transform.y - bp.chargeLastY));
+    float expectedDist = speed * deltaTime * 0.3f; // 30% of expected = threshold
+    if (movedDist < expectedDist && bp.chargeTimer < 0.5f) {
+      bp.chargeStuckTimer += deltaTime;
+    } else {
+      bp.chargeStuckTimer = 0.0f;
+    }
+    bp.chargeLastX = transform.x;
+    bp.chargeLastY = transform.y;
+
+    bool done = bp.chargeTimer <= 0.0f || bp.chargeStuckTimer > 0.1f;
+
+    if (done) {
       vel.vx = 0.0f;
       vel.vy = 0.0f;
       bp.isCharging = false;
       bp.patternStep = 2;
-      bp.patternTimer = 0.4f; // recovery time
+      bp.patternTimer = 0.4f;
       combat.currentState = AttackState::RECOVERY;
       cam.addShake(8.0f, 0.3f);
     }

@@ -17,9 +17,7 @@ public:
   // Load a texture from a file path (cached)
   Texture2D getTexture(const std::string &path) {
     if (textures.find(path) == textures.end()) {
-      if (path == "assets/sprites/player/warrior_idle.png") {
-        textures[path] = PixelArtGenerator::getWarrior();
-      } else if (path == "assets/sprites/tiles/floor.png") {
+      if (path == "assets/sprites/tiles/floor.png") {
         textures[path] = PixelArtGenerator::getFloor();
       } else if (path == "assets/sprites/tiles/decor_bones.png") {
         textures[path] = PixelArtGenerator::getDecor();

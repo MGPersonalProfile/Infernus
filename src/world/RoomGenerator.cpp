@@ -36,7 +36,19 @@ RoomTemplate RoomGenerator::generate(int difficulty, bool isBossRoom) {
 
   room.playerSpawn = {2, room.height / 2};
 
-  int enemyCount = isBossRoom ? 0 : (4 + difficulty * 2);
+  // Guarantee a clear corridor from player spawn (3 tiles wide, first 5 tiles only)
+  int spawnY = room.height / 2;
+  int clearEnd = (room.width - 1 < 7) ? room.width - 1 : 7;
+  for (int x = 1; x < clearEnd; x++) {
+    for (int dy = -1; dy <= 1; dy++) {
+      int y = spawnY + dy;
+      if (y > 0 && y < room.height - 1 &&
+          room.grid[y][x] == TileType::WALL)
+        room.grid[y][x] = TileType::FLOOR;
+    }
+  }
+
+  int enemyCount = isBossRoom ? 0 : (2 + difficulty);
   placeSpawnPoints(room, enemyCount);
 
   return room;
@@ -173,6 +185,7 @@ void RoomGenerator::placeSpawnPoints(RoomTemplate &room, int enemyCount) {
   room.enemySpawns.clear();
 
   for (int i = 0; i < enemyCount; i++) {
+    bool placed = false;
     for (int attempt = 0; attempt < 50; attempt++) {
       int sx = GetRandomValue(room.width / 3, room.width - 3);
       int sy = GetRandomValue(2, room.height - 3);
@@ -180,7 +193,20 @@ void RoomGenerator::placeSpawnPoints(RoomTemplate &room, int enemyCount) {
       if (room.grid[sy][sx] == TileType::FLOOR) {
         room.enemySpawns.push_back({sx, sy});
         room.grid[sy][sx] = TileType::SPAWN_POINT;
+        placed = true;
         break;
+      }
+    }
+    if (!placed) {
+      // Fallback: scan for any floor tile in the right half
+      for (int fy = 2; fy < room.height - 2 && !placed; fy++) {
+        for (int fx = room.width / 3; fx < room.width - 2 && !placed; fx++) {
+          if (room.grid[fy][fx] == TileType::FLOOR) {
+            room.enemySpawns.push_back({fx, fy});
+            room.grid[fy][fx] = TileType::SPAWN_POINT;
+            placed = true;
+          }
+        }
       }
     }
   }
@@ -218,7 +244,7 @@ void RoomGenerator::instantiate(Registry &registry, const RoomTemplate &room) {
               "assets/sprites/tiles/decor_rune.png"};
           Texture2D dTex = res.getTexture(decorPaths[decorType]);
           registry.addComponent<Sprite>(decor, dTex,
-                                        Rectangle{0, 0, 64.0f, 64.0f}, 0);
+                                        Rectangle{0, 0, 64.0f, 64.0f}, 1); // fixed to layer 1 to solve z-fighting
           registry.addComponent<RoomGeometry>(decor);
           roomEntities.push_back(decor);
         }

@@ -1,0 +1,12 @@
+{
+  "id": "task_1776112948659",
+  "from": "claude-code",
+  "to": "antigravity",
+  "priority": "high",
+  "type": "request",
+  "task": "AUDITORÍA VISUAL de todos los spritesheets del proyecto. Necesito que abras y revises visualmente CADA uno de estos archivos PNG y reportes problemas:\n\n**Players (assets/sprites/player/):**\n- warrior_idle.png (288x56, 6 frames de 48x56)\n- warrior_run.png (384x56, 8 frames de 48x56)\n- warrior_attack.png (288x56, 6 frames de 48x56)\n- rogue_idle.png (240x52, 6 frames de 40x52)\n- rogue_run.png (320x52, 8 frames de 40x52)\n- rogue_attack.png (240x52, 6 frames de 40x52)\n- knight_idle.png (312x60, 6 frames de 52x60)\n- knight_run.png (416x60, 8 frames de 52x60)\n- knight_attack.png (312x60, 6 frames de 52x60)\n\n**Enemies (assets/sprites/enemies/):**\n- melee_idle.png, melee_run.png, melee_attack.png\n- ranged_idle.png, ranged_run.png, ranged_attack.png\n- tank_idle.png, tank_run.png, tank_attack.png\n- assassin_idle.png, assassin_run.png, assassin_attack.png\n- bomber_idle.png, bomber_run.png, bomber_attack.png\n\n**Boss (assets/sprites/bosses/):**\n- minotaur_idle.png (160x80, 2 frames)\n- minotaur_charge.png (240x80, 3 frames)\n- minotaur_slam.png (240x80, 3 frames)\n\n**Partículas (assets/sprites/particles/):**\n- ash_particle.png (32x8, 4 frames de 8x8)\n- blood_drop.png (24x8, 3 frames de 8x8)\n\nPara CADA spritesheet, verifica:\n1. ¿Los frames son visualmente coherentes entre sí? (no cambia el estilo/proporción entre frames)\n2. ¿La paleta encaja con el Círculo VII de Dante? (rojos #8B0000, grises #2B2B2B, naranjas #CC4400)\n3. ¿Hay artefactos en los bordes de los frames? (líneas sueltas, pixeles fuera de lugar)\n4. ¿Los frames de idle→run→attack del MISMO personaje son coherentes entre sí?\n5. ¿El fondo es transparente?\n6. Si algo se ve mal, genera la versión corregida en el mismo path.\n\nReporta un resumen con: OK / PROBLEMAS MENORES / NECESITA REHACERSE para cada sprite.",
+  "context": "El juego usa Raylib con spritesheets HORIZONTALES. El engine lee frames como Rectangle(frameIndex * frameW, 0, frameW, frameH). Todos los sprites ya están integrados en el código con AnimState system y los frame counts están verificados. El estilo visual target es pixel art oscuro tipo Dark Souls/Hades. El Círculo VII es el río de sangre hirviente (Flegetonte) donde están los violentos — la paleta debe reflejar fuego, sangre, ceniza.",
+  "status": "completed",
+  "created_at": "2026-04-13T22:42:28.659961",
+  "completed_at": "2026-04-13T22:55:00.000000"
+}

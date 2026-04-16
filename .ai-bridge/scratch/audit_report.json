@@ -1,0 +1,134 @@
+{
+  "player/warrior_idle.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "player/warrior_run.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "player/warrior_attack.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "player/rogue_idle.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "player/rogue_run.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "player/rogue_attack.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "player/knight_idle.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "player/knight_run.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "player/knight_attack.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "enemies/melee_idle.png": {
+    "status": "NECESITA REHACERSE",
+    "issues": [
+      "Width 128 is not divisible by frames 6"
+    ]
+  },
+  "enemies/melee_run.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "enemies/melee_attack.png": {
+    "status": "NECESITA REHACERSE",
+    "issues": [
+      "Width 128 is not divisible by frames 6"
+    ]
+  },
+  "enemies/ranged_idle.png": {
+    "status": "NECESITA REHACERSE",
+    "issues": [
+      "Width 112 is not divisible by frames 6"
+    ]
+  },
+  "enemies/ranged_run.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "enemies/ranged_attack.png": {
+    "status": "NECESITA REHACERSE",
+    "issues": [
+      "Width 112 is not divisible by frames 6"
+    ]
+  },
+  "enemies/tank_idle.png": {
+    "status": "NECESITA REHACERSE",
+    "issues": [
+      "Width 224 is not divisible by frames 6"
+    ]
+  },
+  "enemies/tank_run.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "enemies/tank_attack.png": {
+    "status": "NECESITA REHACERSE",
+    "issues": [
+      "Width 224 is not divisible by frames 6"
+    ]
+  },
+  "enemies/assassin_idle.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "enemies/assassin_run.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "enemies/assassin_attack.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "enemies/bomber_idle.png": {
+    "status": "NECESITA REHACERSE",
+    "issues": [
+      "Width 128 is not divisible by frames 6"
+    ]
+  },
+  "enemies/bomber_run.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "enemies/bomber_attack.png": {
+    "status": "NECESITA REHACERSE",
+    "issues": [
+      "Width 128 is not divisible by frames 6"
+    ]
+  },
+  "bosses/minotaur_idle.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "bosses/minotaur_charge.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "bosses/minotaur_slam.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "particles/ash_particle.png": {
+    "status": "OK",
+    "issues": []
+  },
+  "particles/blood_drop.png": {
+    "status": "OK",
+    "issues": []
+  }
+}

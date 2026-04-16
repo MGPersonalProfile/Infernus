@@ -7,7 +7,7 @@
 
 class CameraSystem {
 public:
-  Camera2D camera = {0};
+  Camera2D camera = {{0.0f, 0.0f}, {0.0f, 0.0f}, 0.0f, 1.0f};
 
   void init(int screenWidth, int screenHeight) {
     camera.target = {0.0f, 0.0f};

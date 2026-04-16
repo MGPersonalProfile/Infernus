@@ -45,6 +45,12 @@ void MiniBossAISystem::update(Registry &registry, CameraSystem &cam, float delta
 }
 
 void MiniBossAISystem::executeCharge(Registry &registry, Entity mb, CameraSystem &cam, float deltaTime, Entity player) {
+    if (!registry.isAlive(player) || !registry.hasComponent<Transform2D>(player)) {
+        auto &b = registry.getComponent<MiniBoss>(mb);
+        b.specialActive = false;
+        b.specialStep = 0;
+        return;
+    }
     auto &boss = registry.getComponent<MiniBoss>(mb);
     auto &transform = registry.getComponent<Transform2D>(mb);
     auto &vel = registry.getComponent<Velocity>(mb);
@@ -110,6 +116,12 @@ void MiniBossAISystem::executeCharge(Registry &registry, Entity mb, CameraSystem
 }
 
 void MiniBossAISystem::executeMultishot(Registry &registry, Entity mb, float deltaTime, Entity player) {
+    if (!registry.isAlive(player) || !registry.hasComponent<Transform2D>(player)) {
+        auto &b = registry.getComponent<MiniBoss>(mb);
+        b.specialActive = false;
+        b.specialStep = 0;
+        return;
+    }
     auto &boss = registry.getComponent<MiniBoss>(mb);
     auto &transform = registry.getComponent<Transform2D>(mb);
     auto &combat = registry.getComponent<Combat>(mb);

@@ -4,6 +4,7 @@
 #include <memory>
 #include <typeindex>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 using Entity = uint32_t;
@@ -44,6 +45,7 @@ public:
 private:
   Entity nextEntityId = 0;
   std::vector<Entity> activeEntities;
+  std::unordered_set<Entity> aliveSet; // O(1) isAlive lookups
   std::vector<Entity> pendingDestroy;
 
   // Outer map: type_index → per-entity storage.

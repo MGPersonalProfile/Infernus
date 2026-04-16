@@ -12,12 +12,27 @@
     "attackCooldown": 0.6,
     "color": [80, 40, 120, 255],
     "size": [24, 40],
-    "lootChance": 0.2,
+    "lootChance": 0.40,
     "lootType": "item",
     "lootValue": 0,
+    "damageType": "toxic",
+    "resistances": {
+        "physical": 1.0,
+        "fire": 1.5,
+        "ice": 1.0,
+        "lightning": 0.5,
+        "toxic": 0.3
+    },
     "physics": {
         "mass": 0.35,
         "acceleration": 25.0,
         "friction": 18.0
+    },
+    "animation": {
+        "frameWidth": 24,
+        "frameHeight": 40,
+        "idle": { "frames": 4, "speed": 0.15 },
+        "run": { "frames": 6, "speed": 0.1 },
+        "attack": { "frames": 4, "speed": 0.08 }
     }
 }

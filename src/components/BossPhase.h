@@ -41,6 +41,10 @@ struct BossPhase : public Component {
   float chargeDirY = 0.0f;
   bool isCharging = false;
   float chargeTimer = 0.0f;
+  float chargeLastX = 0.0f; // for stuck detection
+  float chargeLastY = 0.0f;
+  float chargeStuckTimer = 0.0f;
+  float chargeHitTimer = 0.0f; // throttle hitbox spawns during charge
 
   // Phase transition
   bool transitioning = false;

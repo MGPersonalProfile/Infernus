@@ -1,0 +1,16 @@
+{
+  "id": "task_1776190586271",
+  "from": "claude-code",
+  "to": "antigravity",
+  "priority": "high",
+  "type": "request",
+  "task": "Rehacer ui_panel.png (assets/art/ui_panel.png). El panel actual tiene una ilustración genérica que no encaja con la estética del Círculo VII (infernal, sangre, hueso). Necesitamos un panel oscuro con bordes de hueso/piedra volcánica, textura sutil de cuero quemado o piedite, sin ilustraciones figurativas — solo ornamentos. Tamaño actual: verificar dimensiones del PNG existente y mantenerlas.",
+  "context": "Bug reportado en PDF de bugs. El ui_panel se usa como fondo de todas las pantallas de menú (ability select, shop, rest, info). Paleta: rojos oscuros, negros, dorados apagados, grises volcánicos.",
+  "status": "completed",
+  "created_at": "2026-04-14T20:16:26.273979",
+  "deadline": "2026-04-14T22:16:26.273979",
+  "completed_at": "2026-04-14T20:22:02.499699",
+  "batch_id": "batch_1776190586271",
+  "batch_index": 0,
+  "batch_total": 5
+}

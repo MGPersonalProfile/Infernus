@@ -1,0 +1,16 @@
+{
+  "id": "task_1776190586290",
+  "from": "claude-code",
+  "to": "antigravity",
+  "priority": "medium",
+  "type": "request",
+  "task": "Rehacer portraits de enemigos y boss: portrait_infernal_knight.png, portrait_pit_fiend.png, portrait_minotaur.png, portrait_soul_archer.png (en assets/art/). Deben verse amenazantes y coherentes con el Círculo VII. Infernal Knight: armadura fundida con lava, ojos rojos. Pit Fiend: demonio musculoso, cuernos, piel oscura con grietas de fuego. Minotaur: bestia masiva, cuernos enormes, pelaje oscuro con sangre. Soul Archer: espectro etéreo, arco de hueso, ojos vacíos brillantes. Mantener dimensiones actuales.",
+  "context": "Se muestran como portraits durante encuentros de boss/miniboss. Estilo consistente con los portraits de player.",
+  "status": "completed",
+  "created_at": "2026-04-14T20:16:26.293405",
+  "deadline": "2026-04-14T22:16:26.293405",
+  "completed_at": "2026-04-14T20:22:02.968074",
+  "batch_id": "batch_1776190586271",
+  "batch_index": 4,
+  "batch_total": 5
+}

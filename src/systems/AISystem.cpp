@@ -1,5 +1,6 @@
 #include "AISystem.h"
 #include "../debug/Profiler.h"
+#include "../components/AnimState.h"
 #include "../components/Combat.h"
 #include "../components/Sprite.h"
 #include "../components/Transform.h"
@@ -21,7 +22,8 @@ void AISystem::update(Registry &registry, float deltaTime) {
     auto &transform = registry.getComponent<Transform2D>(entity);
     auto &velocity = registry.getComponent<Velocity>(entity);
 
-    if (!registry.hasComponent<Transform2D>(ai.targetEntity))
+    if (!registry.isAlive(ai.targetEntity) ||
+        !registry.hasComponent<Transform2D>(ai.targetEntity))
       continue;
 
     auto &playerTransform =
@@ -71,6 +73,23 @@ void AISystem::update(Registry &registry, float deltaTime) {
         sprite.flipX = (dx < 0.0f);
       } else if (ai.currentState == AIState::PATROL) {
         sprite.flipX = (ai.patrolDirection < 0.0f);
+      }
+    }
+
+    // AnimState transitions
+    if (registry.hasComponent<AnimState>(entity)) {
+      auto &as = registry.getComponent<AnimState>(entity);
+      switch (ai.currentState) {
+      case AIState::CHASE:
+      case AIState::PATROL:
+        as.setState(AnimStateType::RUN);
+        break;
+      case AIState::ATTACK:
+        as.setState(AnimStateType::ATTACK);
+        break;
+      default:
+        as.setState(AnimStateType::IDLE);
+        break;
       }
     }
   }
@@ -188,7 +207,7 @@ void AISystem::handleStagger(AIBehavior &ai, Velocity &velocity,
   velocity.vy = 0.0f;
   ai.stateTimer += deltaTime;
 
-  if (ai.stateTimer >= Constants::STAGGER_DURATION) {
+  if (ai.stateTimer >= ai.staggerDuration) {
     ai.currentState = AIState::CHASE;
     ai.stateTimer = 0.0f;
   }

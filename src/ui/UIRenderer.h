@@ -1,5 +1,6 @@
 #pragma once
 #include "../components/Ability.h"
+#include "../components/Combat.h"
 #include "../components/DamageNumber.h"
 #include "../components/Transform.h"
 #include "../core/ECS.h"
@@ -60,13 +61,25 @@ public:
     }
   }
 
+  // Element color for damage numbers
+  static Color elementColor(DamageType type) {
+    switch (type) {
+    case DamageType::FIRE:      return Color{255, 120, 30, 255};
+    case DamageType::ICE:       return Color{100, 200, 255, 255};
+    case DamageType::LIGHTNING: return Color{255, 255, 80, 255};
+    case DamageType::TOXIC:     return Color{120, 255, 60, 255};
+    default:                    return Color{255, 80, 80, 255};
+    }
+  }
+
   // Spawn a damage number entity
   static void spawnDamageNumber(Registry &registry, float x, float y,
-                                int amount, bool isCrit) {
+                                int amount, bool isCrit,
+                                DamageType dmgType = DamageType::PHYSICAL) {
     Entity e = registry.createEntity();
     registry.addComponent<Transform2D>(e, x, y - 20.0f);
 
-    Color col = isCrit ? Color{255, 220, 50, 255} : Color{255, 80, 80, 255};
+    Color col = isCrit ? Color{255, 220, 50, 255} : elementColor(dmgType);
     std::string text =
         isCrit ? TextFormat("%d!", amount) : TextFormat("%d", amount);
 

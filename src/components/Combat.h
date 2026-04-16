@@ -3,7 +3,7 @@
 
 enum class DamageType { PHYSICAL, FIRE, ICE, LIGHTNING, TOXIC };
 
-enum class AttackState { NONE, WINDUP, ACTIVE, RECOVERY };
+enum class AttackState { NONE, WINDUP, ACTIVE, RECOVERY, PARRY_ACTIVE, PARRY_RECOVERY };
 enum class AttackType { LIGHT, HEAVY };
 
 // Gives an entity the ability to deal damage.
@@ -17,6 +17,11 @@ struct Combat : public Component {
   float stateTimer = 0.0f;
 
   AttackType lastAttackType = AttackType::LIGHT;
+
+  // Combo tracking
+  int comboCount = 0;          // 0-2 = light hits, 3 = finisher pending
+  float comboTimer = 0.0f;     // time left to chain next hit
+  bool isFinisher = false;     // true when current attack is a combo finisher
 
   // Owner entity (used by transient hitboxes to avoid self-damage)
   Entity owner = NULL_ENTITY;

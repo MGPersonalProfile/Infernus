@@ -38,3 +38,12 @@ Cuando Antigravity entrega arte nuevo que reemplaza codigo procedural mio en `Pi
 - Actualizar MASTER_PLAN.md cuando se complete una tarea (marcar [x])
 - El usuario habla en espanol y prefiere respuestas directas y concisas
 - La dificultad del juego debe ser agresivamente alta — es un souls-like, no un paseo
+
+## AI Bridge (.ai-bridge/) — OBLIGATORIO
+
+Tienes un sistema de comunicación AUTOMATIZADO con Antigravity vía MCP + file watcher. **Lee `.ai-bridge/docs/CLAUDE_PROTOCOL.md` ANTES de tu primera tarea** — contiene el protocolo completo obligatorio.
+
+Resumen ejecutivo:
+- **Delegar trabajo visual/web a Antigravity**: `request_antigravity(task, context, priority)` — el bridge le notifica automáticamente, no necesitas decirle nada al usuario.
+- NO uses el viejo sistema de `claude_to_antigravity.md` para tareas rápidas. El bridge es más rápido.
+- Los handover.md siguen siendo válidos solo para entregas masivas de assets.

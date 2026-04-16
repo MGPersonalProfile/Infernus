@@ -15,12 +15,27 @@
     "projectileLifetime": 3.0,
     "color": [200, 100, 0, 255],
     "size": [32, 32],
-    "lootChance": 0.6,
+    "lootChance": 0.70,
     "lootType": "health",
-    "lootValue": 15,
+    "lootValue": 20,
+    "damageType": "fire",
+    "resistances": {
+        "physical": 1.0,
+        "fire": 0.4,
+        "ice": 1.6,
+        "lightning": 1.0,
+        "toxic": 1.4
+    },
     "physics": {
         "mass": 0.5,
         "acceleration": 12.0,
         "friction": 10.0
+    },
+    "animation": {
+        "frameWidth": 32,
+        "frameHeight": 32,
+        "idle": { "frames": 4, "speed": 0.15 },
+        "run": { "frames": 6, "speed": 0.1 },
+        "attack": { "frames": 4, "speed": 0.08 }
     }
 }

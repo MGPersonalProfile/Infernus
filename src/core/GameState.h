@@ -12,5 +12,8 @@ enum class GameState {
   VICTORY,
   INVENTORY,
   INFO,
-  ITEM_SWAP
+  ITEM_SWAP,
+  MAP_SELECT,
+  SHOP,
+  REST
 };

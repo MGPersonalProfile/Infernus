@@ -16,6 +16,11 @@ constexpr float HEAVY_ATTACK_STAMINA = 40.0f;
 constexpr float DASH_STAMINA = 30.0f;
 constexpr float LIGHT_ATTACK_WINDUP = 0.1f;
 constexpr float HEAVY_ATTACK_WINDUP = 0.4f;
+constexpr float PARRY_STAMINA = 15.0f;
+constexpr float PARRY_WINDOW = 0.2f;       // active parry frames
+constexpr float PARRY_RECOVERY = 0.4f;     // locked after parry window expires
+constexpr float PARRY_STAGGER_TIME = 1.5f; // enemy stagger on successful parry
+constexpr float COMBO_WINDOW = 0.35f;      // time to chain next hit after recovery
 
 // -- Combat ------------------------------------------------------------------
 constexpr float HITBOX_ACTIVE_TIME = 0.15f;

@@ -42,7 +42,7 @@ public:
       // Spawn dust particles on sudden direction changes or high speed
       if (speed > effectiveMax * 0.8f) {
         auto &t = registry.getComponent<Transform2D>(e);
-        spawnDustParticle(registry, t.x, t.y + 20.0f);
+        spawnDustParticle(registry, t.x, t.y + 20.0f, deltaTime);
       }
     }
   }
@@ -50,8 +50,8 @@ public:
 private:
   float dustTimer = 0.0f;
 
-  void spawnDustParticle(Registry &registry, float x, float y) {
-    dustTimer += GetFrameTime();
+  void spawnDustParticle(Registry &registry, float x, float y, float deltaTime) {
+    dustTimer += deltaTime;
     if (dustTimer < 0.15f) return;
     dustTimer = 0.0f;
 

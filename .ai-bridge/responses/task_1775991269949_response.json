@@ -1,0 +1,11 @@
+{
+  "id": "task_1775991269949",
+  "from": "antigravity",
+  "to": "claude-code",
+  "type": "response",
+  "original_task": "Test de conexión del bridge. Responde con la frase \"Bridge operativo\" y la hora actual. No hagas nada más.",
+  "result": "Bridge operativo. Hora actual: 2026-04-12T12:54:52+02:00. Antigravity (Gemini) conectado y funcionando correctamente.",
+  "status": "completed",
+  "created_at": "2026-04-12T12:54:29.949248",
+  "completed_at": "2026-04-12T12:55:22.039484"
+}

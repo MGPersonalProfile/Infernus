@@ -1,0 +1,8 @@
+{
+    "name": "visual_audit",
+    "description": "Auditar spritesheets contra especificaciones",
+    "default_priority": "medium",
+    "required_params": ["target_dir", "expected_format"],
+    "task_template": "Audita visualmente todos los spritesheets en {{target_dir}}. Formato esperado: {{expected_format}}. Verifica: 1) Frames coherentes entre estados (no cambia estilo/tamano), 2) Paleta consistente con Circulo VII, 3) Sin artefactos en bordes, 4) Fondo transparente limpio. Genera reporte detallado.",
+    "context_template": "Usa PIL/Pillow para validacion de pixeles. Guarda reporte en .ai-bridge/scratch/audit_report.json. {{extra_context}}"
+}

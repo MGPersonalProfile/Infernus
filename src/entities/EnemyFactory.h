@@ -9,6 +9,8 @@
 
 #pragma once
 #include "../components/AIBehavior.h"
+#include "../components/AnimState.h"
+#include "../components/Animation.h"
 #include "../components/Collider.h"
 #include "../components/Combat.h"
 #include "../components/Health.h"
@@ -63,39 +65,72 @@ public:
     transform.scale = 1.4f;  // Scale enemies up slightly
 
     // --- Sprite (actual textures) ---
-    // Map enemy types to sprite paths and frame sizes
-    std::string spriteName = "demon"; // default
+    // Frame dimensions and counts from JSON "animation" block, with fallbacks
     int frameW = 32, frameH = 32;
-    std::string typeStr2 = data.value("type", "melee");
-    if (enemyId == "assassin") {
-      spriteName = "assassin";
-      frameW = 24; frameH = 40;
-    } else if (enemyId == "bomber") {
-      spriteName = "bomber";
-      frameW = 32; frameH = 32;
-    } else if (typeStr2 == "ranged") {
-      spriteName = "lancer";
-      frameW = 24; frameH = 48;
-    } else if (typeStr2 == "tank") {
-      spriteName = "brute";
-      frameW = 48; frameH = 48;
+    int idleFrames = 4, runFrames = 6, attackFrames = 4;
+    float idleSpeed = 0.15f, runSpeed = 0.1f, attackSpeed = 0.08f;
+
+    if (data.contains("animation")) {
+      auto &anim = data["animation"];
+      frameW = anim.value("frameWidth", 32);
+      frameH = anim.value("frameHeight", 32);
+      if (anim.contains("idle")) {
+        idleFrames = anim["idle"].value("frames", 4);
+        idleSpeed = anim["idle"].value("speed", 0.15f);
+      }
+      if (anim.contains("run")) {
+        runFrames = anim["run"].value("frames", 6);
+        runSpeed = anim["run"].value("speed", 0.1f);
+      }
+      if (anim.contains("attack")) {
+        attackFrames = anim["attack"].value("frames", 4);
+        attackSpeed = anim["attack"].value("speed", 0.08f);
+      }
+    } else if (data.contains("size")) {
+      // Legacy fallback: use "size" field from JSON
+      frameW = data["size"][0].get<int>();
+      frameH = data["size"][1].get<int>();
     }
 
-    std::string spritePath = "assets/sprites/enemies/" + spriteName + "_idle.png";
-    Texture2D tex = ResourceManager::getInstance().getTexture(spritePath);
+    std::string spriteBase = "assets/sprites/enemies/" + enemyId;
+    Texture2D tex = ResourceManager::getInstance().getTexture(spriteBase + "_idle.png");
     registry.addComponent<Sprite>(enemy, tex,
                                   Rectangle{0, 0, (float)frameW, (float)frameH}, 5);
+    registry.addComponent<Animation>(enemy, idleFrames, idleSpeed, (float)frameW, (float)frameH);
+
+    // AnimState clips (idle/run/attack)
+    auto &as = registry.addComponent<AnimState>(enemy);
+    as.addClip(AnimStateType::IDLE, spriteBase + "_idle.png", idleFrames, idleSpeed, (float)frameW, (float)frameH);
+    as.addClip(AnimStateType::RUN, spriteBase + "_run.png", runFrames, runSpeed, (float)frameW, (float)frameH);
+    as.addClip(AnimStateType::ATTACK, spriteBase + "_attack.png", attackFrames, attackSpeed, (float)frameW, (float)frameH, false);
 
     // Collider matches scaled visual size
     registry.addComponent<Collider>(enemy, (float)frameW * 1.4f, (float)frameH * 1.4f, false);
     registry.addComponent<Velocity>(enemy, 0.0f, 0.0f);
 
     int hp = data.value("hp", 30);
-    registry.addComponent<Health>(enemy, hp);
+    auto &health = registry.addComponent<Health>(enemy, hp);
+
+    // Elemental resistances (from JSON "resistances" block)
+    if (data.contains("resistances")) {
+      auto &r = data["resistances"];
+      health.resistances.physical  = r.value("physical", 1.0f);
+      health.resistances.fire      = r.value("fire", 1.0f);
+      health.resistances.ice       = r.value("ice", 1.0f);
+      health.resistances.lightning = r.value("lightning", 1.0f);
+      health.resistances.toxic     = r.value("toxic", 1.0f);
+    }
 
     int damage = data.value("damage", 10);
     float knockback = data.value("knockback", 100.0f);
-    registry.addComponent<Combat>(enemy, damage, knockback);
+    auto &combat = registry.addComponent<Combat>(enemy, damage, knockback);
+
+    // Damage type from JSON
+    std::string dmgTypeStr = data.value("damageType", "physical");
+    if (dmgTypeStr == "fire") combat.damageType = DamageType::FIRE;
+    else if (dmgTypeStr == "ice") combat.damageType = DamageType::ICE;
+    else if (dmgTypeStr == "lightning") combat.damageType = DamageType::LIGHTNING;
+    else if (dmgTypeStr == "toxic") combat.damageType = DamageType::TOXIC;
 
     // --- AI Behavior ---
     AIBehavior ai;

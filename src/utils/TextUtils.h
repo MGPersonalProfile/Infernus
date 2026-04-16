@@ -41,15 +41,38 @@ inline void drawCentered(const char *text, int y, int fontSize, Color color,
 
 // Draw with shadow (text + offset shadow behind it).
 inline void drawShadow(const char *text, int x, int y, int fontSize,
-                       Color color, Color shadowColor = {0, 0, 0, 180}) {
+                       Color color, Color shadowColor = {0, 0, 0, 200}) {
+  draw(text, x + 2, y + 2, fontSize, shadowColor);
   draw(text, x + 1, y + 1, fontSize, shadowColor);
   draw(text, x, y, fontSize, color);
+}
+
+// Draw text with a thick outline (8-directional) for readability on busy backgrounds.
+inline void drawOutlined(const char *text, int x, int y, int fontSize,
+                         Color color, int thickness = 2,
+                         Color outlineColor = {0, 0, 0, 255}) {
+  for (int ox = -thickness; ox <= thickness; ox++) {
+    for (int oy = -thickness; oy <= thickness; oy++) {
+      if (ox == 0 && oy == 0) continue;
+      draw(text, x + ox, y + oy, fontSize, outlineColor);
+    }
+  }
+  draw(text, x, y, fontSize, color);
+}
+
+// Draw centered with outline.
+inline void drawCenteredOutlined(const char *text, int y, int fontSize,
+                                 Color color, int screenWidth, int thickness = 2,
+                                 Color outlineColor = {0, 0, 0, 255}) {
+  int tw = measure(text, fontSize);
+  int x = (screenWidth - tw) / 2;
+  drawOutlined(text, x, y, fontSize, color, thickness, outlineColor);
 }
 
 // Draw centered with shadow.
 inline void drawCenteredShadow(const char *text, int y, int fontSize,
                                Color color, int screenWidth,
-                               Color shadowColor = {0, 0, 0, 180}) {
+                               Color shadowColor = {0, 0, 0, 200}) {
   int tw = measure(text, fontSize);
   int x = (screenWidth - tw) / 2;
   drawShadow(text, x, y, fontSize, color, shadowColor);
@@ -63,6 +86,37 @@ inline std::string truncate(const std::string &text, int fontSize, int maxWidth)
     result.pop_back();
   while (!result.empty() && result.back() == ' ') result.pop_back();
   return result + "...";
+}
+
+// Draw wrapped text. Returns the final Y position after drawing all lines.
+inline int drawWrapped(const char *text, int x, int y, int fontSize, Color color, int maxWidth) {
+    std::string s(text);
+    std::string currentLine = "";
+    int currentY = y;
+    int lineSpacing = fontSize + 4; // approximate line height spacing
+    
+    size_t pos = 0;
+    while(pos < s.length()) {
+        size_t nextSpace = s.find(' ', pos);
+        if(nextSpace == std::string::npos) nextSpace = s.length();
+        
+        std::string word = s.substr(pos, nextSpace - pos);
+        std::string testLine = currentLine.empty() ? word : currentLine + " " + word;
+        
+        if (measure(testLine.c_str(), fontSize) > maxWidth && !currentLine.empty()) {
+            draw(currentLine.c_str(), x, currentY, fontSize, color);
+            currentY += lineSpacing;
+            currentLine = word;
+        } else {
+            currentLine = testLine;
+        }
+        pos = nextSpace + 1;
+    }
+    if (!currentLine.empty()) {
+        draw(currentLine.c_str(), x, currentY, fontSize, color);
+        currentY += lineSpacing;
+    }
+    return currentY;
 }
 
 } // namespace TextUtils

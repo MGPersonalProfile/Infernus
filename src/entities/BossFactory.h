@@ -1,4 +1,6 @@
 #pragma once
+#include "../components/AnimState.h"
+#include "../components/Animation.h"
 #include "../components/BossPhase.h"
 #include "../components/Collider.h"
 #include "../components/Combat.h"
@@ -62,23 +64,64 @@ public:
     auto &bossTransform = registry.addComponent<Transform2D>(boss, x, y);
     bossTransform.scale = 1.3f;  // Scale boss up for intimidation
 
-    // Boss sprite (80x80 per frame, 2-frame idle)
-    std::string spritePath = "assets/sprites/bosses/" + bossId + "_idle.png";
-    Texture2D tex = ResourceManager::getInstance().getTexture(spritePath);
+    // Boss sprite — frame dimensions and counts from JSON "animation" block
     int frameW = 80, frameH = 80;
+    int idleFrames = 2, chargeFrames = 3, slamFrames = 3;
+    float idleSpeed = 0.2f, chargeSpeed_anim = 0.1f, slamSpeed = 0.1f;
+
+    if (data.contains("animation")) {
+      auto &anim = data["animation"];
+      frameW = anim.value("frameWidth", 80);
+      frameH = anim.value("frameHeight", 80);
+      if (anim.contains("idle")) {
+        idleFrames = anim["idle"].value("frames", 2);
+        idleSpeed = anim["idle"].value("speed", 0.2f);
+      }
+      if (anim.contains("charge")) {
+        chargeFrames = anim["charge"].value("frames", 3);
+        chargeSpeed_anim = anim["charge"].value("speed", 0.1f);
+      }
+      if (anim.contains("slam")) {
+        slamFrames = anim["slam"].value("frames", 3);
+        slamSpeed = anim["slam"].value("speed", 0.1f);
+      }
+    }
+
+    std::string spriteBase = "assets/sprites/bosses/" + bossId;
+    Texture2D tex = ResourceManager::getInstance().getTexture(spriteBase + "_idle.png");
     registry.addComponent<Sprite>(boss, tex,
                                   Rectangle{0, 0, (float)frameW, (float)frameH}, 6);
+    registry.addComponent<Animation>(boss, idleFrames, idleSpeed, (float)frameW, (float)frameH);
+
+    // AnimState clips
+    auto &as = registry.addComponent<AnimState>(boss);
+    as.addClip(AnimStateType::IDLE, spriteBase + "_idle.png", idleFrames, idleSpeed, (float)frameW, (float)frameH);
+    as.addClip(AnimStateType::CHARGE, spriteBase + "_charge.png", chargeFrames, chargeSpeed_anim, (float)frameW, (float)frameH);
+    as.addClip(AnimStateType::SLAM, spriteBase + "_slam.png", slamFrames, slamSpeed, (float)frameW, (float)frameH, false);
 
     // Collider matches scaled visual
     registry.addComponent<Collider>(boss, (float)frameW * 1.3f, (float)frameH * 1.3f, false);
     registry.addComponent<Velocity>(boss, 0.0f, 0.0f);
 
     int hp = data.value("hp", 500);
-    registry.addComponent<Health>(boss, hp);
+    auto &health = registry.addComponent<Health>(boss, hp);
+    if (data.contains("resistances")) {
+      auto &r = data["resistances"];
+      health.resistances.physical  = r.value("physical", 1.0f);
+      health.resistances.fire      = r.value("fire", 1.0f);
+      health.resistances.ice       = r.value("ice", 1.0f);
+      health.resistances.lightning = r.value("lightning", 1.0f);
+      health.resistances.toxic     = r.value("toxic", 1.0f);
+    }
 
     int damage = data.value("damage", 20);
     float knockback = data.value("knockback", 200.0f);
-    registry.addComponent<Combat>(boss, damage, knockback);
+    auto &combat = registry.addComponent<Combat>(boss, damage, knockback);
+    std::string dmgTypeStr = data.value("damageType", "physical");
+    if (dmgTypeStr == "fire") combat.damageType = DamageType::FIRE;
+    else if (dmgTypeStr == "ice") combat.damageType = DamageType::ICE;
+    else if (dmgTypeStr == "lightning") combat.damageType = DamageType::LIGHTNING;
+    else if (dmgTypeStr == "toxic") combat.damageType = DamageType::TOXIC;
 
     // --- Boss Phase ---
     BossPhase bp;

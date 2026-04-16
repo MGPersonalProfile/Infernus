@@ -34,6 +34,7 @@
 #include "../entities/MiniBossFactory.h"
 #include "../ui/UIRenderer.h"
 #include "../world/RoomGenerator.h"
+#include "../world/RunMap.h"
 #include "../entities/EnemyFactory.h"
 #include "../entities/PlayerFactory.h"
 
@@ -76,6 +77,7 @@ private:
   ItemSystem itemSystem;
 
   RoomGenerator roomGenerator;
+  RunMap runMap;
   SaveManager saveManager;
 
   Entity playerEntity = NULL_ENTITY;
@@ -83,13 +85,18 @@ private:
 
   // Room/wave management
   int currentRoom = 0;
-  int totalRooms = 5;       // rooms before boss
+  int totalRooms = 4;       // rooms before boss (0-3, then boss)
   int enemiesAlive = 0;
   bool roomCleared = false;
+  float bossIntroTimer = 0.0f;
 
   // Ability selection
   std::vector<AbilityData> abilityChoices;
   int selectedAbility = 0;
+
+  // Shop items (persisted between update/render)
+  std::vector<AbilityData> shopItems;
+  bool shopInitialized = false;
 
   // Character selection
   int selectedCharacter = 0;
@@ -124,7 +131,7 @@ private:
   // Item swap (when picking up item with full inventory)
   ItemData pendingItem;
 
-  void handlePlayerInput();
+  void handlePlayerInput(float deltaTime);
   void processLootPickups();
   void spawnRoom();
   void checkRoomClear();
@@ -135,6 +142,7 @@ private:
   struct AshParticle {
     float x, y, vx, vy, life, maxLife, size;
     Color color;
+    int frameIndex = 0; // sprite frame (0-3 for ash_particle.png)
   };
   std::vector<AshParticle> ashParticles;
   float ashSpawnTimer = 0.0f;
@@ -162,6 +170,16 @@ private:
   void drawItemSwap();
   void drawDebugOverlay();
   void drawAbilitiesView();
+  void drawMapSelect();
+  void drawShop();
+  void drawRest();
+  void drawMinimap();
+  void spawnRoomFromNode(MapNode &node);
   void startGame(int characterIndex);
   void endRun(bool victory);
+
+  // Shader components
+  RenderTexture2D renderTarget;
+  Shader crtVignetteShader;
+  int renderSizeLoc;
 };
