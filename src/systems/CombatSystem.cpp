@@ -9,6 +9,7 @@
 #include "../components/Health.h"
 #include "../components/Lifetime.h"
 #include "../components/Particle.h"
+#include "../components/ActiveAbility.h"
 #include "../components/PlayerStats.h"
 #include "../components/Sprite.h"
 #include "../components/Transform.h"
@@ -208,6 +209,22 @@ void CombatSystem::processHitDetection(Registry &registry,
           if (healAmt > 0) {
             auto &ownerHP = registry.getComponent<Health>(attackOwner);
             ownerHP.currentHP = std::min(ownerHP.currentHP + healAmt, ownerHP.maxHP);
+          }
+        }
+
+        // Active "drenar_alma" charges: heal 50% of damage, decrement
+        if (registry.hasComponent<ActiveAbilities>(attackOwner) &&
+            registry.hasComponent<Health>(attackOwner)) {
+          auto &actives = registry.getComponent<ActiveAbilities>(attackOwner);
+          int heal = damage / 2;
+          if (actives.chargesQ > 0) {
+            actives.chargesQ--;
+            auto &ownerHP = registry.getComponent<Health>(attackOwner);
+            ownerHP.currentHP = std::min(ownerHP.currentHP + heal, ownerHP.maxHP);
+          } else if (actives.chargesE > 0) {
+            actives.chargesE--;
+            auto &ownerHP = registry.getComponent<Health>(attackOwner);
+            ownerHP.currentHP = std::min(ownerHP.currentHP + heal, ownerHP.maxHP);
           }
         }
       }

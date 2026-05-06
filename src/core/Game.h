@@ -25,6 +25,7 @@
 #include "../systems/ItemSystem.h"
 
 #include "../components/Ability.h"
+#include "../components/ActiveAbility.h"
 #include "../components/Item.h"
 #include "../components/ItemPickup.h"
 #include "../components/PlayerStats.h"

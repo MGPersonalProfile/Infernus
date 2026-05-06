@@ -15,6 +15,8 @@ enum class InputAction {
   INTERACT,
   SPECIAL_ATTACK,
   PARRY,
+  ABILITY_Q,           // Active ability slot 1 (Q)
+  ABILITY_E,           // Active ability slot 2 (E)
   OPEN_INVENTORY,
   OPEN_INFO,
   OPEN_ABILITIES
@@ -32,9 +34,11 @@ public:
     keyBinds[InputAction::ATTACK_LIGHT] = KEY_J;
     keyBinds[InputAction::ATTACK_HEAVY] = KEY_K;
     keyBinds[InputAction::DASH] = KEY_SPACE;
-    keyBinds[InputAction::INTERACT] = KEY_E;
+    keyBinds[InputAction::INTERACT] = KEY_R;          // moved from E (E now ability slot 2)
     keyBinds[InputAction::SPECIAL_ATTACK] = KEY_L;
     keyBinds[InputAction::PARRY] = KEY_F;
+    keyBinds[InputAction::ABILITY_Q] = KEY_Q;         // active ability slot 1
+    keyBinds[InputAction::ABILITY_E] = KEY_E;         // active ability slot 2
     keyBinds[InputAction::OPEN_INVENTORY] = KEY_I;
     keyBinds[InputAction::OPEN_INFO] = KEY_TAB;
     keyBinds[InputAction::OPEN_ABILITIES] = KEY_H;
@@ -56,6 +60,11 @@ public:
         GAMEPAD_BUTTON_LEFT_TRIGGER_1; // LB on Xbox
     padBinds[InputAction::PARRY] =
         GAMEPAD_BUTTON_RIGHT_TRIGGER_1; // RB on Xbox
+    // Active abilities on triggers (Xbox-style)
+    padBinds[InputAction::ABILITY_Q] =
+        GAMEPAD_BUTTON_LEFT_TRIGGER_2;  // LT on Xbox
+    padBinds[InputAction::ABILITY_E] =
+        GAMEPAD_BUTTON_RIGHT_TRIGGER_2; // RT on Xbox
   }
 
   // Check if key/button for action is currently held down

@@ -49,6 +49,7 @@ void Game::init() {
   AudioManager::getInstance().init();
   AudioManager::getInstance().playMusic("menu");
   abilitySystem.loadAbilities("assets/data/abilities.json");
+  abilitySystem.loadActiveAbilities("assets/data/active_abilities.json");
   synergySystem.loadSynergies("assets/data/synergies.json");
   itemSystem.loadItems("assets/data/items.json");
   saveManager.load();
@@ -528,6 +529,14 @@ void Game::handlePlayerInput(float deltaTime) {
               anim.finished = false;
           }
       }
+  }
+
+  // === Active abilities (Q / E) ===
+  if (inputManager.isActionPressed(InputAction::ABILITY_Q)) {
+    abilitySystem.tryUseActive(registry, playerEntity, 0);
+  }
+  if (inputManager.isActionPressed(InputAction::ABILITY_E)) {
+    abilitySystem.tryUseActive(registry, playerEntity, 1);
   }
 }
 
@@ -1440,6 +1449,65 @@ void Game::drawHUD() {
     TextUtils::drawOutlined(TextFormat("L: %.1fs", specialCooldownTimer), 20, 102, 10,
              Color{220, 100, 100, 255}, 1);
   }
+
+  // === Active abilities HUD (Q / E slots, bottom-right) ===
+  if (registry.hasComponent<ActiveAbilities>(playerEntity)) {
+    auto &actives = registry.getComponent<ActiveAbilities>(playerEntity);
+    int slotSize = 56;
+    int gap = 8;
+    int totalW = slotSize * 2 + gap;
+    int slotsY = screenHeight - slotSize - 20;
+    int slotsX = screenWidth - totalW - 20;
+
+    auto drawSlot = [&](int idx, const char *keyLabel, bool has,
+                        const ActiveAbilityData &a, float cooldown) {
+      int x = slotsX + idx * (slotSize + gap);
+      int y = slotsY;
+
+      // Frame background
+      DrawRectangle(x, y, slotSize, slotSize, Color{20, 12, 8, 220});
+      DrawRectangleLinesEx({(float)x, (float)y, (float)slotSize, (float)slotSize},
+                           2.0f, has ? Color{180, 140, 70, 255} : Color{60, 50, 40, 255});
+
+      if (!has) {
+        // Empty slot — show key label only
+        TextUtils::draw(keyLabel, x + slotSize / 2 - 4, y + slotSize / 2 - 8,
+                        16, Color{80, 70, 60, 255});
+        return;
+      }
+
+      // Icon
+      Texture2D icon = ResourceManager::getInstance().getTexture(a.iconPath);
+      if (icon.id > 0) {
+        Rectangle src = {0, 0, (float)icon.width, (float)icon.height};
+        Rectangle dst = {(float)(x + 4), (float)(y + 4),
+                         (float)(slotSize - 8), (float)(slotSize - 8)};
+        DrawTexturePro(icon, src, dst, {0, 0}, 0.0f, WHITE);
+      } else {
+        // Fallback: name
+        TextUtils::draw(a.name.c_str(), x + 4, y + slotSize / 2 - 4, 8,
+                        Color{200, 180, 140, 255});
+      }
+
+      // Cooldown overlay
+      if (cooldown > 0.0f) {
+        float ratio = cooldown / a.cooldown;
+        int overlayH = (int)(slotSize * ratio);
+        DrawRectangle(x, y + slotSize - overlayH, slotSize, overlayH,
+                      Color{0, 0, 0, 180});
+        TextUtils::drawOutlined(TextFormat("%.1f", cooldown),
+                                x + slotSize / 2 - 8, y + slotSize / 2 - 6, 12,
+                                Color{220, 200, 160, 255}, 1);
+      }
+
+      // Key label (top-left corner)
+      TextUtils::drawOutlined(keyLabel, x + 3, y + 3, 10,
+                              Color{220, 180, 100, 255}, 1);
+    };
+
+    drawSlot(0, "Q", actives.hasQ, actives.slotQ, actives.cooldownQ);
+    drawSlot(1, "E", actives.hasE, actives.slotE, actives.cooldownE);
+  }
 }
 
 void Game::drawBossHealthBar() {
@@ -1833,6 +1901,9 @@ void Game::startGame(int characterIndex) {
   registry.addComponent<Combat>(playerEntity, damage, 150.0f);
   registry.addComponent<AbilityHolder>(playerEntity);
   registry.addComponent<ItemHolder>(playerEntity);
+
+  // Equip default active abilities (Q/E) for the chosen class
+  abilitySystem.equipDefaultActives(registry, playerEntity, charId);
 
   // Set up PlayerStats with base values
   auto &pstats = registry.addComponent<PlayerStats>(playerEntity);
