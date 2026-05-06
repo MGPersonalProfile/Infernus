@@ -277,7 +277,7 @@ void Game::handlePlayerInput(float deltaTime) {
   velocity.vx = 0.0f;
   velocity.vy = 0.0f;
 
-  float speed = Constants::PLAYER_SPEED;
+  float speed = LuaEngine::getFeel("player_speed", Constants::PLAYER_SPEED);
   if (registry.hasComponent<PlayerStats>(playerEntity))
     speed = registry.getComponent<PlayerStats>(playerEntity).finalSpeed;
 
@@ -334,24 +334,36 @@ void Game::handlePlayerInput(float deltaTime) {
       combat.comboCount = 0; // combo dropped
   }
 
+  // Lua-tunable feel parameters (cached once per call)
+  const float fParryStamina  = LuaEngine::getFeel("parry_stamina",  Constants::PARRY_STAMINA);
+  const float fParryWindow   = LuaEngine::getFeel("parry_window",   Constants::PARRY_WINDOW);
+  const float fHeavyStamina  = LuaEngine::getFeel("heavy_attack_stamina", Constants::HEAVY_ATTACK_STAMINA);
+  const float fHeavyWindup   = LuaEngine::getFeel("heavy_attack_windup",  Constants::HEAVY_ATTACK_WINDUP);
+  const float fLightStamina  = LuaEngine::getFeel("light_attack_stamina", Constants::LIGHT_ATTACK_STAMINA);
+  const float fLightWindup   = LuaEngine::getFeel("light_attack_windup",  Constants::LIGHT_ATTACK_WINDUP);
+  const float fComboWindow   = LuaEngine::getFeel("combo_window",   Constants::COMBO_WINDOW);
+  const float fDashStamina   = LuaEngine::getFeel("dash_stamina",   Constants::DASH_STAMINA);
+  const float fDashIframes   = LuaEngine::getFeel("dash_iframes",   Constants::DASH_IFRAMES);
+  const float fDashSpeed     = LuaEngine::getFeel("dash_speed",     Constants::DASH_SPEED);
+
   if (combat.currentState == AttackState::NONE) {
     // --- Parry (F / RB) ---
     if (inputManager.isActionPressed(InputAction::PARRY) &&
-        stamina.hasEnough(Constants::PARRY_STAMINA)) {
+        stamina.hasEnough(fParryStamina)) {
       combat.currentState = AttackState::PARRY_ACTIVE;
-      combat.stateTimer = Constants::PARRY_WINDOW;
-      stamina.currentStamina -= Constants::PARRY_STAMINA;
+      combat.stateTimer = fParryWindow;
+      stamina.currentStamina -= fParryStamina;
       stamina.cooldownTimer = stamina.regenDelay;
       AudioManager::getInstance().playSFX("dash"); // reuse for now
     }
     // --- Combo finisher: 3 lights → heavy input triggers finisher ---
     else if (combat.comboCount >= 3 &&
              inputManager.isActionPressed(InputAction::ATTACK_HEAVY) &&
-             stamina.hasEnough(Constants::HEAVY_ATTACK_STAMINA)) {
+             stamina.hasEnough(fHeavyStamina)) {
       combat.currentState = AttackState::WINDUP;
-      combat.stateTimer = Constants::HEAVY_ATTACK_WINDUP * windupMult * 0.7f;
+      combat.stateTimer = fHeavyWindup * windupMult * 0.7f;
       combat.lastAttackType = AttackType::HEAVY;
-      stamina.currentStamina -= Constants::HEAVY_ATTACK_STAMINA;
+      stamina.currentStamina -= fHeavyStamina;
       stamina.cooldownTimer = stamina.regenDelay;
       combat.comboCount = 0;
       combat.comboTimer = 0.0f;
@@ -362,26 +374,26 @@ void Game::handlePlayerInput(float deltaTime) {
     }
     // --- Light attack (combo chain) ---
     else if (inputManager.isActionPressed(InputAction::ATTACK_LIGHT) &&
-             stamina.hasEnough(Constants::LIGHT_ATTACK_STAMINA)) {
+             stamina.hasEnough(fLightStamina)) {
       combat.currentState = AttackState::WINDUP;
       float speedup = 1.0f - combat.comboCount * 0.08f; // each hit slightly faster
-      combat.stateTimer = Constants::LIGHT_ATTACK_WINDUP * windupMult * speedup;
+      combat.stateTimer = fLightWindup * windupMult * speedup;
       combat.lastAttackType = AttackType::LIGHT;
-      stamina.currentStamina -= Constants::LIGHT_ATTACK_STAMINA;
+      stamina.currentStamina -= fLightStamina;
       stamina.cooldownTimer = stamina.regenDelay;
       combat.comboCount++;
-      combat.comboTimer = Constants::COMBO_WINDOW;
+      combat.comboTimer = fComboWindow;
       AudioManager::getInstance().playSFX("attack_light");
       if (registry.hasComponent<AnimState>(playerEntity))
         registry.getComponent<AnimState>(playerEntity).setState(AnimStateType::ATTACK);
     }
     // --- Heavy attack (standalone) ---
     else if (inputManager.isActionPressed(InputAction::ATTACK_HEAVY) &&
-             stamina.hasEnough(Constants::HEAVY_ATTACK_STAMINA)) {
+             stamina.hasEnough(fHeavyStamina)) {
       combat.currentState = AttackState::WINDUP;
-      combat.stateTimer = Constants::HEAVY_ATTACK_WINDUP * windupMult;
+      combat.stateTimer = fHeavyWindup * windupMult;
       combat.lastAttackType = AttackType::HEAVY;
-      stamina.currentStamina -= Constants::HEAVY_ATTACK_STAMINA;
+      stamina.currentStamina -= fHeavyStamina;
       stamina.cooldownTimer = stamina.regenDelay;
       combat.comboCount = 0;
       combat.comboTimer = 0.0f;
@@ -392,23 +404,22 @@ void Game::handlePlayerInput(float deltaTime) {
   }
 
   if (inputManager.isActionPressed(InputAction::DASH) &&
-      stamina.hasEnough(Constants::DASH_STAMINA)) {
-    stamina.currentStamina -= Constants::DASH_STAMINA;
+      stamina.hasEnough(fDashStamina)) {
+    stamina.currentStamina -= fDashStamina;
     stamina.cooldownTimer = stamina.regenDelay;
     AudioManager::getInstance().playSFX("dash");
 
     if (registry.hasComponent<Health>(playerEntity))
-      registry.getComponent<Health>(playerEntity).invulnerabilityTimer =
-          Constants::DASH_IFRAMES;
+      registry.getComponent<Health>(playerEntity).invulnerabilityTimer = fDashIframes;
 
     if (velocity.vx != 0.0f || velocity.vy != 0.0f) {
       float len = sqrtf(velocity.vx * velocity.vx + velocity.vy * velocity.vy);
-      velocity.vx = (velocity.vx / len) * Constants::DASH_SPEED;
-      velocity.vy = (velocity.vy / len) * Constants::DASH_SPEED;
+      velocity.vx = (velocity.vx / len) * fDashSpeed;
+      velocity.vy = (velocity.vy / len) * fDashSpeed;
     } else {
       bool left = registry.hasComponent<Sprite>(playerEntity) &&
                   registry.getComponent<Sprite>(playerEntity).flipX;
-      velocity.vx = left ? -Constants::DASH_SPEED : Constants::DASH_SPEED;
+      velocity.vx = left ? -fDashSpeed : fDashSpeed;
     }
 
     // Spawn dash ghost trail
@@ -438,7 +449,7 @@ void Game::handlePlayerInput(float deltaTime) {
         float len = sqrtf(fx * fx + fy * fy);
         if (len > 0.1f) { fx /= len; fy /= len; } else { fx = 0; fy = 0; }
         
-        float dashDistance = Constants::DASH_SPEED * Constants::DASH_IFRAMES;
+        float dashDistance = fDashSpeed * fDashIframes;
         Entity dashHit = registry.createEntity();
         registry.addComponent<Transform2D>(dashHit, pt.x + (fx * dashDistance)/2.0f - dashDistance/2.0f, pt.y + (fy * dashDistance)/2.0f - dashDistance/2.0f);
         
@@ -446,7 +457,7 @@ void Game::handlePlayerInput(float deltaTime) {
         float hh = std::abs(fy) > 0.5f ? dashDistance + 40.0f : 40.0f;
         registry.addComponent<Collider>(dashHit, hw, hh);
         registry.addComponent<Combat>(dashHit, dashDmg, 150.0f, playerEntity);
-        registry.addComponent<Lifetime>(dashHit, Constants::DASH_IFRAMES);
+        registry.addComponent<Lifetime>(dashHit, fDashIframes);
       }
     }
   }

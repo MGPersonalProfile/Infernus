@@ -65,7 +65,8 @@ void CombatSystem::processAttackStates(Registry &registry, float deltaTime) {
     if (combat.currentState == AttackState::WINDUP &&
         combat.stateTimer <= 0.0f) {
       combat.currentState = AttackState::ACTIVE;
-      combat.stateTimer = Constants::HITBOX_ACTIVE_TIME;
+      combat.stateTimer =
+          LuaEngine::getFeel("hitbox_active_time", Constants::HITBOX_ACTIVE_TIME);
       // Apply windup multiplier to recovery too if player
       if (registry.hasComponent<PlayerStats>(entity)) {
         auto &ps = registry.getComponent<PlayerStats>(entity);
@@ -76,7 +77,8 @@ void CombatSystem::processAttackStates(Registry &registry, float deltaTime) {
     } else if (combat.currentState == AttackState::ACTIVE &&
                combat.stateTimer <= 0.0f) {
       combat.currentState = AttackState::RECOVERY;
-      combat.stateTimer = Constants::ATTACK_RECOVERY_TIME;
+      combat.stateTimer =
+          LuaEngine::getFeel("attack_recovery_time", Constants::ATTACK_RECOVERY_TIME);
 
     } else if (combat.currentState == AttackState::RECOVERY &&
                combat.stateTimer <= 0.0f) {
@@ -85,7 +87,8 @@ void CombatSystem::processAttackStates(Registry &registry, float deltaTime) {
                combat.stateTimer <= 0.0f) {
       // Parry window expired without blocking — punishment recovery
       combat.currentState = AttackState::PARRY_RECOVERY;
-      combat.stateTimer = Constants::PARRY_RECOVERY;
+      combat.stateTimer =
+          LuaEngine::getFeel("parry_recovery", Constants::PARRY_RECOVERY);
     } else if (combat.currentState == AttackState::PARRY_RECOVERY &&
                combat.stateTimer <= 0.0f) {
       combat.currentState = AttackState::NONE;
@@ -225,8 +228,8 @@ void CombatSystem::processHitDetection(Registry &registry,
       if (damage < 1) damage = 1; // always deal at least 1
 
       vHealth.currentHP -= damage;
-      vHealth.invulnerabilityTimer = Constants::HIT_IFRAMES;
-      vHealth.hitFlashTimer = Constants::HIT_FLASH_TIME;
+      vHealth.invulnerabilityTimer = LuaEngine::getFeel("hit_iframes", Constants::HIT_IFRAMES);
+      vHealth.hitFlashTimer        = LuaEngine::getFeel("hit_flash_time", Constants::HIT_FLASH_TIME);
 
       // Knockback — push victim away from attacker
       if (registry.hasComponent<Velocity>(victim)) {
@@ -314,7 +317,8 @@ void CombatSystem::spawnHitbox(Registry &registry, Entity owner) {
   registry.addComponent<Collider>(hitbox, hitW, hitH);
   auto &hitCombat = registry.addComponent<Combat>(hitbox, hitDamage, hitKnockback, owner);
   hitCombat.damageType = ownerCombat.damageType;
-  registry.addComponent<Lifetime>(hitbox, Constants::HITBOX_ACTIVE_TIME);
+  registry.addComponent<Lifetime>(hitbox,
+      LuaEngine::getFeel("hitbox_active_time", Constants::HITBOX_ACTIVE_TIME));
 
   // Attack pattern modifiers from PlayerStats (items)
   if (registry.hasComponent<PlayerStats>(owner)) {
@@ -403,14 +407,16 @@ void CombatSystem::spawnHitParticles(Registry &registry, float x, float y) {
   auto &res = ResourceManager::getInstance();
   Texture2D bloodTex = res.getTexture("assets/sprites/particles/blood_drop.png");
 
-  int count = GetRandomValue(Constants::HIT_PARTICLES_MIN,
-                             Constants::HIT_PARTICLES_MAX);
+  int pMin = (int)LuaEngine::getFeel("hit_particles_min", (float)Constants::HIT_PARTICLES_MIN);
+  int pMax = (int)LuaEngine::getFeel("hit_particles_max", (float)Constants::HIT_PARTICLES_MAX);
+  int count = GetRandomValue(pMin, pMax);
+  float pLife = LuaEngine::getFeel("hit_particle_lifetime", Constants::HIT_PARTICLE_LIFETIME);
   for (int i = 0; i < count; i++) {
     Entity p = registry.createEntity();
     registry.addComponent<Transform2D>(p, x, y);
     registry.addComponent<Velocity>(p, (float)GetRandomValue(-200, 200),
                                     (float)GetRandomValue(-300, 50));
-    registry.addComponent<Lifetime>(p, Constants::HIT_PARTICLE_LIFETIME);
+    registry.addComponent<Lifetime>(p, pLife);
     // blood_drop.png: 24x8, 3 frames of 8x8 — pick random frame
     int frame = GetRandomValue(0, 2);
     registry.addComponent<Sprite>(p, bloodTex,
