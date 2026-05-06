@@ -26,4 +26,16 @@ void handleInput();
 std::string selectBossPattern(int phase, float hpRatio,
                               const std::vector<std::string>& patterns);
 
+// === Game Feel Tuning ===
+// Cached values from assets/scripts/feel.lua, accessible at zero overhead
+// (just an unordered_map lookup, no Lua call per frame). On reload(), the
+// cache is repopulated from the script. ImGui sliders mutate the cache
+// directly via setFeel() — saveFeelToDisk() persists changes back to file.
+
+float getFeel(const std::string& name, float fallback);
+void  setFeel(const std::string& name, float value);
+bool  hasFeel(const std::string& name);
+void  saveFeelToDisk();
+const std::vector<std::string>& feelKeys(); // for DebugPanel iteration
+
 } // namespace LuaEngine

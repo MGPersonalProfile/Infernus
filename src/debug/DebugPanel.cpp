@@ -15,6 +15,7 @@
 #include "../components/Stamina.h"
 #include "../components/Transform.h"
 #include "../components/AIBehavior.h"
+#include "../scripting/LuaEngine.h"
 
 #include <cstdio>
 
@@ -131,6 +132,39 @@ void draw(Registry& registry) {
                     g_tunables.enemyDamageMult  = 1.0f;
                     g_tunables.enemySpeedMult   = 1.0f;
                     g_tunables.timeScale        = 1.0f;
+                }
+            }
+
+            // --- Game Feel (Lua hot-reload) ---
+            if (ImGui::CollapsingHeader("Game Feel  [F5 to reload feel.lua]",
+                                        ImGuiTreeNodeFlags_DefaultOpen)) {
+                const auto& keys = LuaEngine::feelKeys();
+                if (keys.empty()) {
+                    ImGui::TextDisabled("(no feel parameters loaded — check feel.lua)");
+                } else {
+                    for (const std::string& key : keys) {
+                        float v = LuaEngine::getFeel(key, 0.0f);
+                        // Auto-pick slider range based on magnitude — covers 0.01 to 1000
+                        float vMin = (v >= 0.0f) ? 0.0f : v * 4.0f;
+                        float vMax;
+                        if (v < 0.5f)        vMax = 1.0f;
+                        else if (v < 5.0f)   vMax = 10.0f;
+                        else if (v < 50.0f)  vMax = 100.0f;
+                        else if (v < 500.0f) vMax = 1000.0f;
+                        else                 vMax = v * 4.0f;
+
+                        if (ImGui::SliderFloat(key.c_str(), &v, vMin, vMax, "%.4f")) {
+                            LuaEngine::setFeel(key, v);
+                        }
+                    }
+                    ImGui::Separator();
+                    if (ImGui::Button("Save to feel.lua")) {
+                        LuaEngine::saveFeelToDisk();
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Reload from disk")) {
+                        LuaEngine::reload();
+                    }
                 }
             }
 

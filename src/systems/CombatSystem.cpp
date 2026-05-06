@@ -14,6 +14,7 @@
 #include "../components/Transform.h"
 #include "../components/Velocity.h"
 #include "../core/ResourceManager.h"
+#include "../scripting/LuaEngine.h"
 #include "../systems/CameraSystem.h"
 #include "../systems/ScreenEffects.h"
 #include "../ui/UIRenderer.h"
@@ -164,9 +165,9 @@ void CombatSystem::processHitDetection(Registry &registry,
             }
           }
 
-          // VFX: parry flash + big shake
-          cameraSystem.addShake(12.0f, 0.3f);
-          screenEffects.addHitstop(0.1f);
+          // VFX: parry flash + big shake (Lua-tunable via feel.lua)
+          cameraSystem.addShake(LuaEngine::getFeel("shake_parry_intensity", 12.0f), 0.3f);
+          screenEffects.addHitstop(LuaEngine::getFeel("hitstop_parry", 0.1f));
           screenEffects.addFlash(Color{255, 255, 200, 120}, 0.15f);
           AudioManager::getInstance().playSFX("boss_slam"); // impactful sound
           spawnHitParticles(registry, vTransform.x + 20.0f, vTransform.y + 20.0f);
@@ -249,15 +250,17 @@ void CombatSystem::processHitDetection(Registry &registry,
                                     vTransform.y, damage, isCrit,
                                     aCombat.damageType);
 
-      // VFX
-      float shakeAmount = isCrit ? 10.0f : 5.0f;
+      // VFX (Lua-tunable via feel.lua)
+      float shakeAmount = isCrit
+          ? LuaEngine::getFeel("shake_crit_intensity", 10.0f)
+          : LuaEngine::getFeel("shake_normal_intensity", 5.0f);
       cameraSystem.addShake(shakeAmount, isCrit ? 0.3f : 0.2f);
       spawnHitParticles(registry, vTransform.x + 20.0f, vTransform.y + 20.0f);
       spawnSlashArc(registry, vTransform.x, vTransform.y);
 
       // Hitstop on heavy/crit hits
       if (isCrit || aCombat.baseDamage >= 20)
-        screenEffects.addHitstop(0.06f);
+        screenEffects.addHitstop(LuaEngine::getFeel("hitstop_normal", 0.06f));
     }
   }
 }
