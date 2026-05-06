@@ -5,6 +5,7 @@
 #include "../components/Sprite.h"
 #include "../components/Stamina.h"
 #include "../components/Transform.h"
+#include "../components/Velocity.h"
 #include "../utils/Constants.h"
 #include "../utils/TextUtils.h"
 #include "raylib.h"
@@ -36,16 +37,24 @@ void RenderSystem::update(Registry &registry) {
     float renderScaleX = transform.scale;
     float renderScaleY = transform.scale;
 
-    // I-Frames (dash / hit)
+    // I-Frames (dash / hit) + recent-hit pulse
+    bool dashStretch = false;
     if (registry.hasComponent<Health>(entity)) {
       auto &health = registry.getComponent<Health>(entity);
       if (health.isInvulnerable())
         renderTint = ColorAlpha(renderTint, 0.5f);
-      if (health.hitFlashTimer > 0.0f)
+      if (health.hitFlashTimer > 0.0f) {
         renderTint = RED;
+        // Hit pulse: scale up briefly while flash is active
+        float t = health.hitFlashTimer / 0.1f; // 0..1 over flash duration
+        if (t > 1.0f) t = 1.0f;
+        float pulse = 1.0f + 0.18f * t;
+        renderScaleX *= pulse;
+        renderScaleY *= pulse;
+      }
     }
 
-    // Combat states (squash & stretch)
+    // Combat states (squash & stretch + parry success pulse)
     if (registry.hasComponent<Combat>(entity)) {
       auto &combat = registry.getComponent<Combat>(entity);
       if (combat.currentState == AttackState::WINDUP) {
@@ -55,8 +64,31 @@ void RenderSystem::update(Registry &registry) {
         renderScaleX *= 0.8f;
         renderScaleY *= 1.2f;
         renderTint = RED;
+      } else if (combat.currentState == AttackState::PARRY_ACTIVE) {
+        // Parry stance: slight scale-up + cool tint to telegraph the i-frame
+        renderScaleX *= 1.1f;
+        renderScaleY *= 1.1f;
+        renderTint = Color{200, 220, 255, 255};
       }
     }
+
+    // Dash stretch — when entity has high horizontal velocity, stretch in direction
+    if (registry.hasComponent<Velocity>(entity)) {
+      auto &vel = registry.getComponent<Velocity>(entity);
+      float speedSq = vel.vx * vel.vx + vel.vy * vel.vy;
+      // Threshold ~ player base speed^2; dash speed is much higher (1200)
+      if (speedSq > 600000.0f) { // ~775+ px/s
+        if (std::abs(vel.vx) > std::abs(vel.vy)) {
+          renderScaleX *= 1.25f;
+          renderScaleY *= 0.85f;
+        } else {
+          renderScaleX *= 0.85f;
+          renderScaleY *= 1.25f;
+        }
+        dashStretch = true;
+      }
+    }
+    (void)dashStretch; // suppress unused warning if logic changes
 
     // Build destination rect with dynamic scales
     Rectangle destRect = {

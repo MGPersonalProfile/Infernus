@@ -165,6 +165,24 @@ void draw(Registry& registry) {
                     if (ImGui::Button("Reload from disk")) {
                         LuaEngine::reload();
                     }
+
+                    // Preset slots: A/B test feel values without rewriting feel.lua
+                    ImGui::Text("Presets:");
+                    ImGui::SameLine();
+                    for (int slot = 1; slot <= 3; slot++) {
+                        ImGui::PushID(slot);
+                        char saveLabel[16], loadLabel[16];
+                        snprintf(saveLabel, sizeof(saveLabel), "Save %d", slot);
+                        snprintf(loadLabel, sizeof(loadLabel), "Load %d", slot);
+                        if (ImGui::Button(saveLabel)) LuaEngine::savePreset(slot);
+                        ImGui::SameLine();
+                        bool exists = LuaEngine::presetExists(slot);
+                        if (!exists) ImGui::BeginDisabled();
+                        if (ImGui::Button(loadLabel)) LuaEngine::loadPreset(slot);
+                        if (!exists) ImGui::EndDisabled();
+                        if (slot < 3) ImGui::SameLine();
+                        ImGui::PopID();
+                    }
                 }
             }
 

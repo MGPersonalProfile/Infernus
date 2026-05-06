@@ -16,6 +16,7 @@
 #include "../core/ResourceManager.h"
 #include "../scripting/LuaEngine.h"
 #include "../systems/CameraSystem.h"
+#include "../systems/PartikelEmitters.h"
 #include "../systems/ScreenEffects.h"
 #include "../ui/UIRenderer.h"
 #include "../utils/Constants.h"
@@ -260,6 +261,10 @@ void CombatSystem::processHitDetection(Registry &registry,
       cameraSystem.addShake(shakeAmount, isCrit ? 0.3f : 0.2f);
       spawnHitParticles(registry, vTransform.x + 20.0f, vTransform.y + 20.0f);
       spawnSlashArc(registry, vTransform.x, vTransform.y);
+
+      // libpartikel burst — high-volume blood splatter on top of ECS particles
+      PartikelEmitters::spawnBlood(vTransform.x + 16.0f, vTransform.y + 24.0f,
+                                   isCrit ? 18 : 10);
 
       // Hitstop on heavy/crit hits
       if (isCrit || aCombat.baseDamage >= 20)

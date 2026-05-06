@@ -110,6 +110,55 @@ const std::vector<std::string>& feelKeys() {
     return g_feelKeys;
 }
 
+// === Preset slots ===
+// Each slot is a separate .lua file at assets/scripts/feel_preset_<slot>.lua.
+// Saving captures the current cache; loading repopulates the cache without
+// touching feel.lua. Useful for A/B testing values during a single session.
+
+static std::string presetPath(int slot) {
+    char buf[64];
+    snprintf(buf, sizeof(buf), "assets/scripts/feel_preset_%d.lua", slot);
+    return std::string(buf);
+}
+
+void savePreset(int slot) {
+    if (slot < 1 || slot > 3) return;
+    std::ofstream out(presetPath(slot));
+    if (!out.is_open()) {
+        TraceLog(LOG_WARNING, "LUA: Could not open preset slot %d for writing", slot);
+        return;
+    }
+    out << "-- INFERNUS - Preset slot " << slot << "\n";
+    out << "-- Snapshot of feel.lua at the moment of save.\n";
+    out << "feel = {\n";
+    for (const auto& key : g_feelKeys) {
+        out << "    " << key << " = " << g_feelCache[key] << ",\n";
+    }
+    out << "}\n";
+    out.close();
+    TraceLog(LOG_INFO, "LUA: Saved preset slot %d", slot);
+}
+
+void loadPreset(int slot) {
+    if (!g_lua) return;
+    if (slot < 1 || slot > 3) return;
+    std::string path = presetPath(slot);
+    auto result = g_lua->safe_script_file(path, sol::script_pass_on_error);
+    if (!result.valid()) {
+        sol::error err = result;
+        TraceLog(LOG_WARNING, "LUA: Could not load preset %d — %s", slot, err.what());
+        return;
+    }
+    populateFeelCache();
+    TraceLog(LOG_INFO, "LUA: Loaded preset slot %d", slot);
+}
+
+bool presetExists(int slot) {
+    if (slot < 1 || slot > 3) return false;
+    std::ifstream f(presetPath(slot));
+    return f.good();
+}
+
 void saveFeelToDisk() {
     // Write current cache values back to feel.lua, preserving the format.
     // Strategy: rewrite the file with current cache. Comments are preserved
@@ -185,6 +234,9 @@ void  setFeel(const std::string&, float) {}
 bool  hasFeel(const std::string&) { return false; }
 void  saveFeelToDisk() {}
 const std::vector<std::string>& feelKeys() { return g_emptyKeys; }
+void  savePreset(int) {}
+void  loadPreset(int) {}
+bool  presetExists(int) { return false; }
 std::string selectBossPattern(int, float, const std::vector<std::string>& patterns) {
     return patterns.empty() ? "charge" : patterns[0];
 }

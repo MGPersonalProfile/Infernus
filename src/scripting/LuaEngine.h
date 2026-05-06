@@ -38,4 +38,10 @@ bool  hasFeel(const std::string& name);
 void  saveFeelToDisk();
 const std::vector<std::string>& feelKeys(); // for DebugPanel iteration
 
+// Preset slots — quick A/B testing of feel values without touching feel.lua.
+// Slots are written to assets/scripts/feel_preset_<slot>.lua. Slot range 1-3.
+void savePreset(int slot);
+void loadPreset(int slot);
+bool presetExists(int slot);
+
 } // namespace LuaEngine

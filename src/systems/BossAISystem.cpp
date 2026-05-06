@@ -14,6 +14,7 @@
 #include "../components/Velocity.h"
 #include "../core/ResourceManager.h"
 #include "../systems/CameraSystem.h"
+#include "../systems/PartikelEmitters.h"
 #include "../utils/Constants.h"
 #include "raylib.h"
 #include <cmath>
@@ -266,6 +267,8 @@ void BossAISystem::executeGroundSlam(Registry &registry, Entity boss,
       int dmg = (int)(combat.baseDamage * bp.current().damageMultiplier);
       spawnShockwave(registry, transform.x, transform.y, 80.0f, dmg, boss);
       cam.addShake(12.0f, 0.4f);
+      // libpartikel: high-volume dust+ember shockwave on the impact point
+      PartikelEmitters::spawnSlamShockwave(transform.x, transform.y);
     }
     return;
   }

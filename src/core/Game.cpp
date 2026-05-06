@@ -412,6 +412,16 @@ void Game::handlePlayerInput(float deltaTime) {
     if (registry.hasComponent<Health>(playerEntity))
       registry.getComponent<Health>(playerEntity).invulnerabilityTimer = fDashIframes;
 
+    // libpartikel: dust burst at player feet in dash direction
+    {
+      auto &pt = registry.getComponent<Transform2D>(playerEntity);
+      float dirX = (velocity.vx != 0.0f || velocity.vy != 0.0f)
+                   ? velocity.vx
+                   : (registry.hasComponent<Sprite>(playerEntity) &&
+                      registry.getComponent<Sprite>(playerEntity).flipX ? -1.0f : 1.0f);
+      PartikelEmitters::spawnDashDust(pt.x + 16.0f, pt.y + 40.0f, dirX);
+    }
+
     if (velocity.vx != 0.0f || velocity.vy != 0.0f) {
       float len = sqrtf(velocity.vx * velocity.vx + velocity.vy * velocity.vy);
       velocity.vx = (velocity.vx / len) * fDashSpeed;
