@@ -7,6 +7,7 @@
 #include "../components/Velocity.h"
 #include "../entities/ProjectileFactory.h"
 #include "../utils/Constants.h"
+#include "../world/Pathfinding.h"
 #include <cmath>
 
 // =============================================================================
@@ -50,7 +51,8 @@ void AISystem::update(Registry &registry, float deltaTime) {
       handlePatrol(ai, transform, velocity, distToPlayer, deltaTime);
       break;
     case AIState::CHASE:
-      handleChase(registry, entity, ai, velocity, dirX, dirY, distToPlayer);
+      handleChase(registry, entity, ai, transform, velocity, dirX, dirY,
+                  distToPlayer, deltaTime);
       break;
     case AIState::ATTACK:
       handleAttack(registry, entity, ai, transform, velocity, dirX, dirY,
@@ -137,16 +139,67 @@ void AISystem::handlePatrol(AIBehavior &ai, Transform2D & /*transform*/,
 }
 
 void AISystem::handleChase(Registry &registry, Entity entity, AIBehavior &ai,
-                           Velocity &velocity, float dirX, float dirY,
-                           float distToPlayer) {
-  // Ranged enemies retreat if player gets too close
+                           Transform2D &transform, Velocity &velocity,
+                           float dirX, float dirY, float distToPlayer,
+                           float deltaTime) {
+  // Ranged retreat: kite the player
   if (ai.enemyType == EnemyType::RANGED && ai.retreatRange > 0.0f &&
       distToPlayer < ai.retreatRange) {
     velocity.vx = -dirX * ai.chaseSpeed;
     velocity.vy = -dirY * ai.chaseSpeed;
   } else if (distToPlayer > ai.attackRange) {
-    velocity.vx = dirX * ai.chaseSpeed;
-    velocity.vy = dirY * ai.chaseSpeed;
+    // === A* pathfinding ===
+    // If we have a current room and the player is more than 2 tiles away,
+    // use A* to navigate around walls. Direct steering for close range.
+    bool usedPath = false;
+    if (currentRoom && distToPlayer > 96.0f /* > ~1.5 tiles */) {
+      int ts = currentRoom->tileSize;
+      int sx = (int)((transform.x + 16.0f) / ts);
+      int sy = (int)((transform.y + 24.0f) / ts);
+
+      // Player tile
+      auto &playerT = registry.getComponent<Transform2D>(ai.targetEntity);
+      int ex = (int)((playerT.x + 16.0f) / ts);
+      int ey = (int)((playerT.y + 24.0f) / ts);
+
+      // Get/refresh path cache
+      PathInfo &pi = pathCache[entity];
+      pi.ttl -= deltaTime;
+      bool needsRecompute =
+          pi.tiles.empty() || pi.ttl <= 0.0f ||
+          pi.currentWaypoint >= (int)pi.tiles.size();
+
+      if (needsRecompute) {
+        pi.tiles = Pathfinding::findPath(*currentRoom, {sx, sy}, {ex, ey});
+        pi.currentWaypoint = 0;
+        pi.ttl = 0.5f; // recompute every 0.5s while chasing
+      }
+
+      // Step toward next tile if path exists
+      if (pi.tiles.size() >= 2) {
+        // Find a waypoint a few tiles ahead (skip already-reached ones)
+        while (pi.currentWaypoint < (int)pi.tiles.size()) {
+          auto &wp = pi.tiles[pi.currentWaypoint];
+          int wpx = wp.first, wpy = wp.second;
+          float wcx = (float)(wpx * ts + ts / 2);
+          float wcy = (float)(wpy * ts + ts / 2);
+          float wdx = wcx - (transform.x + 16.0f);
+          float wdy = wcy - (transform.y + 24.0f);
+          float wd  = sqrtf(wdx * wdx + wdy * wdy);
+          if (wd < 16.0f) { pi.currentWaypoint++; continue; }
+          // Steer toward this waypoint
+          velocity.vx = (wdx / wd) * ai.chaseSpeed;
+          velocity.vy = (wdy / wd) * ai.chaseSpeed;
+          usedPath = true;
+          break;
+        }
+      }
+    }
+    if (!usedPath) {
+      // Fallback: direct steering (no room set or close enough)
+      velocity.vx = dirX * ai.chaseSpeed;
+      velocity.vy = dirY * ai.chaseSpeed;
+    }
   } else {
     // In attack range
     velocity.vx = 0.0f;
@@ -168,6 +221,7 @@ void AISystem::handleChase(Registry &registry, Entity entity, AIBehavior &ai,
     ai.patrolTimer = 0.0f;
     velocity.vx = 0.0f;
     velocity.vy = 0.0f;
+    pathCache.erase(entity); // drop cached path
   }
 }
 

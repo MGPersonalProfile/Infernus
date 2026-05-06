@@ -95,6 +95,8 @@ void Game::spawnRoom() {
   RoomTemplate room = roomGenerator.generate(currentRoom, isBossRoom);
   roomGenerator.instantiate(registry, room);
   collisionSystem.invalidateWallCache();
+  // Tell AI system about the new room so enemies can pathfind
+  aiSystem.setRoom(&roomGenerator.getCurrentRoom());
 
   // Move player to spawn point
   if (registry.hasComponent<Transform2D>(playerEntity)) {
