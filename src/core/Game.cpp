@@ -3,6 +3,8 @@
 #include "../debug/Profiler.h"
 #include "../scripting/LuaEngine.h"
 #include "../systems/PartikelEmitters.h"
+#include "../world/LDtkRoomLoader.h"
+#include <string>
 #include "../components/AIBehavior.h"
 #include "../components/AnimState.h"
 #include "../components/Animation.h"
@@ -91,8 +93,24 @@ void Game::spawnRoom() {
 
   bool isBossRoom = (currentRoom >= totalRooms);
 
-  // Generate and instantiate room layout
-  RoomTemplate room = roomGenerator.generate(currentRoom, isBossRoom);
+  // Try to load a handcrafted LDtk arena first (drops in seamlessly when
+  // Antigravity adds files to assets/rooms/). Falls back to procedural.
+  RoomTemplate room;
+  std::string ldtkPath = isBossRoom
+      ? "assets/rooms/boss_arena.ldtk"
+      : "assets/rooms/combat_room_" + std::to_string(currentRoom) + ".ldtk";
+  if (FileExists(ldtkPath.c_str())) {
+    auto handcrafted = LDtkRoomLoader::loadProject(ldtkPath);
+    if (!handcrafted.empty() && handcrafted[0].width > 0) {
+      room = handcrafted[0];
+      TraceLog(LOG_INFO, "ROOM: loaded handcrafted %s (%dx%d)",
+               ldtkPath.c_str(), room.width, room.height);
+    } else {
+      room = roomGenerator.generate(currentRoom, isBossRoom);
+    }
+  } else {
+    room = roomGenerator.generate(currentRoom, isBossRoom);
+  }
   roomGenerator.instantiate(registry, room);
   collisionSystem.invalidateWallCache();
   // Tell AI system about the new room so enemies can pathfind
