@@ -47,6 +47,7 @@ import json
 import re
 import time
 from datetime import datetime, timedelta
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from fastmcp import FastMCP
@@ -70,10 +71,38 @@ for d in [INBOX_DIR, CLAUDE_INBOX_DIR, PROCESSED_DIR, RESPONSE_DIR,
 # Default timeout for tasks (hours)
 DEFAULT_TIMEOUT_HOURS = 2.0
 
+# v3 hygiene constants
+LOG_ROTATE_BYTES = 1_000_000          # rotate at ~1 MB
+LOG_KEEP_ROTATIONS = 3                 # keep last N rotated files
+AUTO_ARCHIVE_THRESHOLD_HOURS = 24.0    # archive completed tasks older than this on startup/request
+EXPIRE_AFTER_DAYS = 7.0                # tasks stale > this go to archive/expired/
+
 # ─── Logging ─────────────────────────────────────────────────────────
 
+def _rotate_log_if_needed():
+    """If bridge_log.jsonl exceeds LOG_ROTATE_BYTES, rotate to a timestamped
+    file and prune old rotations. Idempotent and cheap (size check only)."""
+    try:
+        if not LOG_FILE.exists():
+            return
+        if LOG_FILE.stat().st_size < LOG_ROTATE_BYTES:
+            return
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        rotated = LOG_FILE.with_name(f"bridge_log.{ts}.jsonl")
+        LOG_FILE.rename(rotated)
+        # Prune oldest rotations beyond LOG_KEEP_ROTATIONS
+        rotations = sorted(BRIDGE_DIR.glob("bridge_log.*.jsonl"))
+        excess = len(rotations) - LOG_KEEP_ROTATIONS
+        for old in rotations[:max(0, excess)]:
+            old.unlink()
+    except Exception:
+        # Never let log maintenance break the server
+        pass
+
+
 def _log(event: str, **kwargs):
-    """Append a structured event to bridge_log.jsonl."""
+    """Append a structured event to bridge_log.jsonl. Auto-rotates at ~1 MB."""
+    _rotate_log_if_needed()
     entry = {
         "timestamp": datetime.now().isoformat(),
         "event": event,
@@ -81,6 +110,62 @@ def _log(event: str, **kwargs):
     }
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def _auto_maintenance():
+    """Lightweight upkeep run at startup and before each new task creation:
+    - Archive completed tasks older than AUTO_ARCHIVE_THRESHOLD_HOURS
+    - Move tasks stale > EXPIRE_AFTER_DAYS to archive/expired/
+    Returns dict {archived: N, expired: M} for logging."""
+    archived = 0
+    expired = 0
+    try:
+        archive_cutoff = datetime.now() - timedelta(hours=AUTO_ARCHIVE_THRESHOLD_HOURS)
+        expire_cutoff  = datetime.now() - timedelta(days=EXPIRE_AFTER_DAYS)
+        month_dir = ARCHIVE_DIR / archive_cutoff.strftime("%Y-%m")
+        expired_dir = ARCHIVE_DIR / "expired"
+        month_dir.mkdir(parents=True, exist_ok=True)
+        expired_dir.mkdir(parents=True, exist_ok=True)
+
+        for f in list(INBOX_DIR.glob("*.json")):
+            try:
+                data = _read_json(f)
+            except Exception:
+                continue
+            status = data.get("status", "")
+            created_at = data.get("created_at", "")
+            completed_at = data.get("completed_at") or created_at
+
+            # Archive completed tasks (and their responses) past threshold
+            if status in ("completed", "failed", "retried") and completed_at:
+                try:
+                    ct = datetime.fromisoformat(completed_at)
+                    if ct <= archive_cutoff:
+                        f.rename(month_dir / f.name)
+                        rp = RESPONSE_DIR / f"{data['id']}_response.json"
+                        if rp.exists():
+                            rp.rename(month_dir / rp.name)
+                        archived += 1
+                        continue
+                except Exception:
+                    pass
+
+            # Expire pending tasks past EXPIRE_AFTER_DAYS
+            if status == "pending" and created_at:
+                try:
+                    ct = datetime.fromisoformat(created_at)
+                    if ct <= expire_cutoff:
+                        # Mark expired in the file before moving so audit trail survives
+                        data["status"] = "expired"
+                        data["expired_at"] = datetime.now().isoformat()
+                        _write_json(f, data)
+                        f.rename(expired_dir / f.name)
+                        expired += 1
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return {"archived": archived, "expired": expired}
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────
@@ -134,9 +219,55 @@ def _make_task_id() -> str:
     return f"task_{int(time.time() * 1000)}"
 
 
+def _normalize_for_dedup(text: str) -> str:
+    """Lowercase + collapse whitespace + strip common stopwords for fuzzy match."""
+    t = text.lower()
+    # Strip URLs and paths to focus on intent
+    t = re.sub(r'https?://\S+', '', t)
+    t = re.sub(r'[/\\][\w./\\-]+', ' ', t)
+    t = re.sub(r'\s+', ' ', t).strip()
+    return t
+
+
+def _find_duplicate(task_text: str, threshold: float = 0.75) -> dict | None:
+    """Search pending tasks in INBOX_DIR for a similar one. Returns the
+    matching task dict if similarity > threshold, else None.
+    Uses difflib's SequenceMatcher on normalized prefixes (first 200 chars).
+    """
+    norm_new = _normalize_for_dedup(task_text)[:200]
+    if len(norm_new) < 20:
+        return None  # too short to be meaningful
+    best = None
+    best_ratio = 0.0
+    for f in INBOX_DIR.glob("*.json"):
+        try:
+            d = _read_json(f)
+        except Exception:
+            continue
+        if d.get("status") != "pending":
+            continue
+        norm_old = _normalize_for_dedup(d.get("task", ""))[:200]
+        if len(norm_old) < 20:
+            continue
+        ratio = SequenceMatcher(None, norm_new, norm_old).ratio()
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best = d
+    if best and best_ratio >= threshold:
+        return {**best, "_similarity": round(best_ratio, 3)}
+    return None
+
+
 # ─── FastMCP Server ──────────────────────────────────────────────────
 
 mcp = FastMCP("antigravity-bridge")
+
+# Run hygiene at server startup so any stale state from prior sessions is
+# tidied before tools fire. Cheap and idempotent.
+_startup_stats = _auto_maintenance()
+if _startup_stats["archived"] or _startup_stats["expired"]:
+    _log("auto_maintenance_startup",
+         archived=_startup_stats["archived"], expired=_startup_stats["expired"])
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -145,7 +276,8 @@ mcp = FastMCP("antigravity-bridge")
 
 @mcp.tool
 def request_antigravity(task: str, context: str = "", priority: str = "medium",
-                        timeout_hours: float = DEFAULT_TIMEOUT_HOURS) -> str:
+                        timeout_hours: float = DEFAULT_TIMEOUT_HOURS,
+                        force: bool = False) -> str:
     """Envia una tarea a Antigravity (Gemini).
 
     Delega: imagenes, sprites, web search, browser, analisis visual, paletas.
@@ -156,7 +288,24 @@ def request_antigravity(task: str, context: str = "", priority: str = "medium",
         context: Contexto adicional (archivos, restricciones, dimensiones, paleta)
         priority: low | medium | high | critical
         timeout_hours: Horas antes de considerar la tarea como stale (default 2)
+        force: Si True, salta el check de duplicados (default False)
     """
+    # Lightweight hygiene before creating a new task (no-op if nothing to do)
+    _auto_maintenance()
+
+    # Dedup check: warn if a near-identical task is already pending
+    if not force:
+        dup = _find_duplicate(task)
+        if dup:
+            sim_pct = int(dup["_similarity"] * 100)
+            return (
+                f"DUPLICADO POSIBLE — tarea similar ya pendiente.\n"
+                f"  Existing: {dup['id']} ({sim_pct}% similar, {dup.get('priority')}, "
+                f"{_task_age_str(dup.get('created_at',''))} old)\n"
+                f"  Summary: {dup.get('task', '')[:140]}\n\n"
+                f"Si es realmente diferente, llama otra vez con force=True."
+            )
+
     task_id = _make_task_id()
     deadline = (datetime.now() + timedelta(hours=timeout_hours)).isoformat()
 
@@ -775,11 +924,14 @@ def check_batch(batch_id: str) -> str:
 # ═══════════════════════════════════════════════════════════════════════
 
 @mcp.tool
-def bridge_dashboard() -> str:
+def bridge_dashboard(format: str = "text") -> str:
     """Resumen completo del estado del bridge.
 
     Muestra: tareas pendientes, stale, completadas hoy, ultimo contexto,
     respuestas sin procesar, y salud general del bridge.
+
+    Args:
+        format: 'text' (default, human-readable) o 'json' (estructurado para scripts)
     """
     now = datetime.now()
     today = now.date().isoformat()
@@ -836,6 +988,26 @@ def bridge_dashboard() -> str:
     if LOG_FILE.exists():
         log_lines = sum(1 for _ in open(LOG_FILE, encoding="utf-8"))
 
+    _log("dashboard_viewed", format=format)
+
+    if format == "json":
+        ctx_ages = {}
+        for t in VALID_TOPICS:
+            path = SHARED_CONTEXT_DIR / f"{t}.md"
+            if path.exists():
+                ctx_ages[t] = datetime.fromtimestamp(path.stat().st_mtime).isoformat()
+        return json.dumps({
+            "pending_to_antigravity": pending_ag,
+            "stale_count": stale_count,
+            "pending_to_claude": pending_cl,
+            "completed_today": completed_today,
+            "total_historic": total_tasks,
+            "unprocessed_responses": unprocessed_responses,
+            "log_events": log_lines,
+            "context_topics_updated_at": ctx_ages,
+            "generated_at": now.isoformat(),
+        }, ensure_ascii=False, indent=2)
+
     lines = [
         "=== AI BRIDGE DASHBOARD ===\n",
         f"Tareas pendientes -> Antigravity: {pending_ag}"
@@ -854,8 +1026,6 @@ def bridge_dashboard() -> str:
         lines.append("  (vacio)")
 
     lines.extend(["", f"Log: {log_lines} eventos registrados"])
-
-    _log("dashboard_viewed")
 
     return "\n".join(lines)
 
@@ -1015,6 +1185,145 @@ def archive_completed(older_than_hours: float = 24.0) -> str:
         return "Nada que archivar."
 
     return f"Archivadas {archived} tarea(s) en {month_dir}"
+
+
+@mcp.tool
+def bridge_search(query: str, since_hours: float = 168.0, limit: int = 50) -> str:
+    """Busca eventos en bridge_log.jsonl por keyword + ventana temporal.
+
+    Args:
+        query: substring case-insensitive a buscar en cualquier campo del evento
+        since_hours: solo eventos ultimos N horas (default 168 = 1 semana)
+        limit: maximo de matches a retornar (default 50)
+    """
+    if not LOG_FILE.exists():
+        return "Log vacio."
+    cutoff = datetime.now() - timedelta(hours=since_hours)
+    q = query.lower()
+    matches = []
+    try:
+        with open(LOG_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    e = json.loads(line)
+                except Exception:
+                    continue
+                ts = e.get("timestamp", "")
+                try:
+                    if datetime.fromisoformat(ts) < cutoff:
+                        continue
+                except Exception:
+                    pass
+                # Search across all fields as JSON dump (cheap, robust)
+                blob = json.dumps(e, ensure_ascii=False).lower()
+                if q in blob:
+                    matches.append(e)
+                    if len(matches) >= limit:
+                        break
+    except Exception as ex:
+        return f"Error leyendo log: {ex}"
+
+    _log("bridge_search", query=query[:80], matches=len(matches))
+
+    if not matches:
+        return f"Sin matches para '{query}' en ultimas {since_hours}h."
+    out = [f"=== {len(matches)} match(es) para '{query}' (ultimas {since_hours}h) ==="]
+    for e in matches:
+        ts = e.get("timestamp", "?")
+        ev = e.get("event", "?")
+        extras = {k: v for k, v in e.items() if k not in ("timestamp", "event")}
+        out.append(f"  [{ts}] {ev} — {json.dumps(extras, ensure_ascii=False)[:200]}")
+    return "\n".join(out)
+
+
+@mcp.tool
+def bridge_health() -> str:
+    """Estado de salud del bridge: ultimo response de cada agente, tareas
+    huerfanas, log size. Util para detectar agentes silentes/dormidos."""
+    now = datetime.now()
+    last_event_by_agent = {"antigravity": None, "claude-code": None}
+    last_event_global = None
+    if LOG_FILE.exists():
+        try:
+            with open(LOG_FILE, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        e = json.loads(line)
+                    except Exception:
+                        continue
+                    ts = e.get("timestamp")
+                    if ts:
+                        last_event_global = ts
+                    # Heuristics: task_completed.by, response_checked, task_created.to
+                    by = e.get("by")
+                    to = e.get("to")
+                    if by in last_event_by_agent and ts:
+                        last_event_by_agent[by] = ts
+                    if to in last_event_by_agent and ts:
+                        last_event_by_agent[to] = ts
+        except Exception:
+            pass
+
+    def _silence(ts):
+        if not ts:
+            return "never"
+        try:
+            return _task_age_str(ts)
+        except Exception:
+            return "?"
+
+    log_size_bytes = LOG_FILE.stat().st_size if LOG_FILE.exists() else 0
+    log_size_kb = log_size_bytes // 1024
+
+    # Orphans: tasks with status=pending and no deadline / very old
+    orphans = 0
+    for f in INBOX_DIR.glob("*.json"):
+        try:
+            d = _read_json(f)
+        except Exception:
+            continue
+        if d.get("status") != "pending":
+            continue
+        if not d.get("deadline"):
+            orphans += 1
+
+    lines = [
+        "=== BRIDGE HEALTH ===",
+        f"Last activity (global):       {_silence(last_event_global)} ago",
+        f"Last from Antigravity:        {_silence(last_event_by_agent['antigravity'])} ago",
+        f"Last from Claude:             {_silence(last_event_by_agent['claude-code'])} ago",
+        f"Log size:                     {log_size_kb} KB"
+        + (" (will rotate at 1MB)" if log_size_bytes > LOG_ROTATE_BYTES * 0.8 else ""),
+        f"Orphan tasks (no deadline):   {orphans}",
+        f"Generated at:                 {now.isoformat()}",
+    ]
+    _log("bridge_health_check")
+    return "\n".join(lines)
+
+
+@mcp.tool
+def prune_inbox() -> str:
+    """Higiene manual: archiva tareas completadas viejas y expira pendientes.
+
+    Llamada explicita para limpieza on-demand. El servidor tambien lo hace
+    automaticamente al startup y antes de crear nuevas tareas, asi que en
+    operacion normal no necesitas invocarlo. Util para quotas/auditorias.
+
+    Acciones:
+      - Archiva tareas completed/failed/retried con +24h de antigüedad
+      - Mueve tareas pending stale +7 dias a archive/expired/
+      - Rota bridge_log.jsonl si supera 1MB
+    """
+    _rotate_log_if_needed()
+    stats = _auto_maintenance()
+    _log("prune_inbox_manual", **stats)
+    if stats["archived"] == 0 and stats["expired"] == 0:
+        return "Inbox limpio — nada que prunear."
+    return (
+        f"Prune completado.\n"
+        f"  Archivadas: {stats['archived']} tarea(s)\n"
+        f"  Expiradas:  {stats['expired']} tarea(s)"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
