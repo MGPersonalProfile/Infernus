@@ -260,11 +260,24 @@ void CombatSystem::processHitDetection(Registry &registry,
         vVel.vy += aCombat.knockbackForce * (dy / dist);
       }
 
-      // SFX — distinguish player vs enemy hit
-      if (registry.hasComponent<AIBehavior>(victim))
-        AudioManager::getInstance().playSFX("hit_enemy");
-      else
+      // SFX — distinguish player vs enemy hit, and damage type for enemy hits.
+      // Damage-type variants are silent if the WAV doesn't exist (AudioManager
+      // lazy-loads + skips missing files). Antigravity can drop in
+      // hit_fire.wav, hit_ice.wav etc. without code changes.
+      if (registry.hasComponent<AIBehavior>(victim)) {
+        const char *typedSfx = nullptr;
+        switch (aCombat.damageType) {
+          case DamageType::FIRE:      typedSfx = "hit_fire"; break;
+          case DamageType::ICE:       typedSfx = "hit_ice"; break;
+          case DamageType::LIGHTNING: typedSfx = "hit_lightning"; break;
+          case DamageType::TOXIC:     typedSfx = "hit_toxic"; break;
+          default: break;
+        }
+        if (typedSfx) AudioManager::getInstance().playSFX(typedSfx);
+        AudioManager::getInstance().playSFX("hit_enemy"); // base layer always
+      } else {
         AudioManager::getInstance().playSFX("hit_player");
+      }
 
       // Damage number (colored by element)
       UIRenderer::spawnDamageNumber(registry, vTransform.x + 10.0f,

@@ -439,6 +439,14 @@ void Game::executeSpecialAttack() {
 void Game::update(float deltaTime) {
   INFERNUS_ZONE_N("Game::update");
   AudioManager::getInstance().update();
+  // Music ducks during combat: 1.0 = normal, ~0.45 = enemies present
+  // (Antigravity can drop in dedicated combat tracks later — for now we just
+  // duck the exploration music as a simple combat-state cue.)
+  {
+    bool inCombat = (state == GameState::PLAYING && enemiesAlive > 0);
+    AudioManager::getInstance().setMusicDuckTarget(inCombat ? 0.45f : 1.0f);
+    AudioManager::getInstance().updateMusicDuck(deltaTime);
+  }
   DebugPanel::handleInput();
   LuaEngine::handleInput();
 

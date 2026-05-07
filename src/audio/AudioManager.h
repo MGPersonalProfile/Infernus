@@ -112,7 +112,26 @@ public:
   void setMusicVolume(float vol) {
     musicVolume = vol;
     if (currentMusic.ctxData != nullptr)
-      SetMusicVolume(currentMusic, vol);
+      SetMusicVolume(currentMusic, vol * musicDuck);
+  }
+
+  // Music ducking — multiply current music volume by `duck` (0..1).
+  // Game uses this to lower music in combat (more enemies = more duck).
+  // Smoothed internally so transitions are not abrupt.
+  void setMusicDuckTarget(float duck) {
+    if (duck < 0.2f) duck = 0.2f; // never silence completely
+    if (duck > 1.0f) duck = 1.0f;
+    musicDuckTarget = duck;
+  }
+  // Call from Game::update each frame to smoothly approach target duck.
+  void updateMusicDuck(float deltaTime) {
+    if (currentMusic.ctxData == nullptr) return;
+    float diff = musicDuckTarget - musicDuck;
+    float step = 1.5f * deltaTime; // ~0.66s to fully transition
+    if (diff > step)       musicDuck += step;
+    else if (diff < -step) musicDuck -= step;
+    else                   musicDuck = musicDuckTarget;
+    SetMusicVolume(currentMusic, musicVolume * musicDuck);
   }
 
 private:
@@ -126,4 +145,6 @@ private:
   float masterVolume = 0.7f;
   float sfxVolume = 0.8f;
   float musicVolume = 0.5f;
+  float musicDuck = 1.0f;       // current applied multiplier
+  float musicDuckTarget = 1.0f; // smoothed toward by updateMusicDuck
 };
