@@ -223,30 +223,62 @@ void RoomGenerator::instantiate(Registry &registry, const RoomTemplate &room) {
       float wy = tileToWorld(y, room.tileSize);
 
       if (tile == TileType::FLOOR || tile == TileType::SPAWN_POINT) {
-        // Floor tile
+        // Floor tile — random variant for visual variety (Antigravity tileset)
         Entity floor = registry.createEntity();
         registry.addComponent<Transform2D>(floor, wx, wy);
-        Texture2D floorTex = res.getTexture("assets/sprites/tiles/floor.png");
+        const char *floorVariants[] = {
+            "assets/sprites/tiles/floor.png",
+            "assets/sprites/tiles/floor_var1.png",
+            "assets/sprites/tiles/floor_var2.png",
+            "assets/sprites/tiles/floor_var3.png",
+            "assets/sprites/tiles/floor_var4.png",
+            "assets/sprites/tiles/floor_var5.png",
+            "assets/sprites/tiles/floor_var6.png"};
+        // Bias toward base floor.png (50%) so the look stays cohesive
+        int variantIdx = (GetRandomValue(0, 99) < 50) ? 0 :
+                         GetRandomValue(1, 6);
+        Texture2D floorTex = res.getTexture(floorVariants[variantIdx]);
         registry.addComponent<Sprite>(floor, floorTex,
                                       Rectangle{0, 0, 64.0f, 64.0f}, 0);
         registry.addComponent<RoomGeometry>(floor);
         roomEntities.push_back(floor);
 
-        // Random floor decorations (15% chance)
+        // Small floor decorations (15% chance)
         if (GetRandomValue(0, 99) < 15) {
           Entity decor = registry.createEntity();
           registry.addComponent<Transform2D>(decor, wx, wy);
-          int decorType = GetRandomValue(0, 3);
+          int decorType = GetRandomValue(0, 4);
           const char *decorPaths[] = {
               "assets/sprites/tiles/decor_crack.png",
               "assets/sprites/tiles/decor_blood.png",
               "assets/sprites/tiles/decor_bones.png",
-              "assets/sprites/tiles/decor_rune.png"};
+              "assets/sprites/tiles/decor_rune.png",
+              "assets/sprites/tiles/decor_lava_crack.png"};
           Texture2D dTex = res.getTexture(decorPaths[decorType]);
           registry.addComponent<Sprite>(decor, dTex,
                                         Rectangle{0, 0, 64.0f, 64.0f}, 1); // fixed to layer 1 to solve z-fighting
           registry.addComponent<RoomGeometry>(decor);
           roomEntities.push_back(decor);
+        }
+        // Ambient set-dressing (3% chance, only on interior tiles).
+        // Pillars/altars/tombstones are visual only — non-blocking, drawn
+        // in front of floor but behind entities. Uses Antigravity's pixel
+        // art tilesets.
+        else if (GetRandomValue(0, 99) < 3 &&
+                 x > 1 && x < room.width - 2 &&
+                 y > 1 && y < room.height - 2) {
+          Entity ambient = registry.createEntity();
+          registry.addComponent<Transform2D>(ambient, wx, wy);
+          const char *ambientPaths[] = {
+              "assets/sprites/tiles/decor_pillar.png",
+              "assets/sprites/tiles/decor_altar.png",
+              "assets/sprites/tiles/decor_tombstone.png"};
+          int idx = GetRandomValue(0, 2);
+          Texture2D aTex = res.getTexture(ambientPaths[idx]);
+          registry.addComponent<Sprite>(ambient, aTex,
+                                        Rectangle{0, 0, 64.0f, 64.0f}, 2);
+          registry.addComponent<RoomGeometry>(ambient);
+          roomEntities.push_back(ambient);
         }
 
       } else if (tile == TileType::WALL) {
@@ -254,7 +286,13 @@ void RoomGenerator::instantiate(Registry &registry, const RoomTemplate &room) {
         registry.addComponent<Transform2D>(wall, wx, wy);
         registry.addComponent<Collider>(wall, (float)room.tileSize,
                                         (float)room.tileSize, false);
-        Texture2D tex = res.getTexture("assets/sprites/tiles/wall.png");
+        // Wall variants for visual break (still mostly base wall)
+        const char *wallVariants[] = {
+            "assets/sprites/tiles/wall.png",
+            "assets/sprites/tiles/wall_var2.png",
+            "assets/sprites/tiles/wall_var3.png"};
+        int wIdx = (GetRandomValue(0, 99) < 70) ? 0 : GetRandomValue(1, 2);
+        Texture2D tex = res.getTexture(wallVariants[wIdx]);
         registry.addComponent<Sprite>(wall, tex,
                                       Rectangle{0, 0, 64.0f, 64.0f}, 1);
         registry.addComponent<RoomGeometry>(wall);

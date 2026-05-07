@@ -7,14 +7,22 @@
 
 enum class AnimStateType { IDLE, RUN, ATTACK, DEATH, CHARGE, SLAM };
 
-// AnimEvent — fired when the current frame of a clip transitions to `frame`.
-// Data-driven via assets/data/anim_events.json. Actions:
-//   "spawn_particles" — param = "blood" | "dust" | "fire" | "shockwave"
-//   "play_sfx"        — param = sfx name (e.g. "footstep", "swing")
+// AnimEvent — fired when currentFrame transitions to `frame`. Schema follows
+// assets/data/animation_events/events.json (Antigravity-edited).
+// Actions and their params (extracted by AnimEventDispatcher::dispatch):
+//   "play_sfx":        { sound: string, volume?: float }
+//   "spawn_particles": { type: string, count?: int, offsetX?, offsetY?: float }
+//   "screen_shake":    { intensity: float, duration: float }
+//   "add_hitstop":     { duration: float }
+//   "apply_velocity":  { vx: float, vy: float }
+// Params are JSON to allow data-driven action growth without C++ schema churn.
 struct AnimEvent {
   int frame = 0;
   std::string action;
-  std::string param;
+  // Pretty-printed JSON of the params object. Stored as string to keep this
+  // header self-contained (no <json.hpp> dependency in components/). The
+  // dispatcher parses on demand — fine for at-most-N-events-per-frame fires.
+  std::string paramsJson;
 };
 
 struct AnimClip {

@@ -59,7 +59,9 @@ void Game::init() {
   abilitySystem.loadActiveAbilities("assets/data/active_abilities.json");
   synergySystem.loadSynergies("assets/data/synergies.json");
   itemSystem.loadItems("assets/data/items.json");
-  AnimEventDispatcher::load("assets/data/anim_events.json");
+  // Wire dispatcher to live subsystems so screen_shake / add_hitstop can fire.
+  AnimEventDispatcher::wire(&cameraSystem, &screenEffects);
+  AnimEventDispatcher::load("assets/data/animation_events/events.json");
   saveManager.load();
 
   // Preload art textures so they're ready before the first frame
