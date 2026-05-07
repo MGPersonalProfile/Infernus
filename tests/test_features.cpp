@@ -19,15 +19,16 @@
 static RoomTemplate makeOpenRoom(int w, int h) {
   RoomTemplate r;
   r.width = w; r.height = h; r.tileSize = 64;
-  r.grid.assign(w, std::vector<TileType>(h, TileType::FLOOR));
+  // Row-major: grid[y][x] (matches RoomGenerator + LDtkLoader convention)
+  r.grid.assign(h, std::vector<TileType>(w, TileType::FLOOR));
   // Outer walls
   for (int x = 0; x < w; x++) {
-    r.grid[x][0] = TileType::WALL;
-    r.grid[x][h - 1] = TileType::WALL;
+    r.grid[0][x] = TileType::WALL;
+    r.grid[h - 1][x] = TileType::WALL;
   }
   for (int y = 0; y < h; y++) {
-    r.grid[0][y] = TileType::WALL;
-    r.grid[w - 1][y] = TileType::WALL;
+    r.grid[y][0] = TileType::WALL;
+    r.grid[y][w - 1] = TileType::WALL;
   }
   return r;
 }
@@ -44,13 +45,12 @@ void testPathfindingDirectLine() {
 }
 
 void testPathfindingAroundWall() {
-  // Build a wall in the middle and check path goes around it
+  // Build a vertical wall at column x=5, rows y=1..7 (row-major: grid[y][5])
+  // Path must detour through y=8 corridor.
   auto r = makeOpenRoom(10, 10);
-  for (int y = 1; y <= 7; y++) r.grid[5][y] = TileType::WALL;
-  // Path from left of wall to right of wall must go around (down through y=8)
+  for (int y = 1; y <= 7; y++) r.grid[y][5] = TileType::WALL;
   auto path = Pathfinding::findPath(r, {2, 4}, {8, 4});
   assert(!path.empty() && "Expected a path around the wall");
-  // Verify no path tile is the wall column at y in [1,7]
   for (auto &t : path) {
     if (t.first == 5) {
       assert((t.second < 1 || t.second > 7) &&
@@ -61,14 +61,11 @@ void testPathfindingAroundWall() {
 }
 
 void testPathfindingNoPath() {
-  // Surround end with walls — unreachable
+  // Block column 5 from y=1 to y=8 inclusive — fully cuts off right half
+  // (outer walls close y=0 and y=9 already).
   auto r = makeOpenRoom(10, 10);
-  for (int y = 1; y <= 8; y++) r.grid[5][y] = TileType::WALL;
-  // Add second wall to fully isolate right half
-  // (corridor at top/bottom is closed by outer walls)
+  for (int y = 1; y <= 8; y++) r.grid[y][5] = TileType::WALL;
   auto path = Pathfinding::findPath(r, {2, 4}, {8, 4});
-  // Should be empty: no path through fully blocked column
-  // (outer walls already closed top y=0 and bottom y=9)
   assert(path.empty() && "Expected no path when corridor fully blocked");
   std::cout << "[OK] Pathfinding no path\n";
 }

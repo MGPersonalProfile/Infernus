@@ -22,7 +22,8 @@ using Tile = std::pair<int, int>;
 
 inline bool isWalkable(const RoomTemplate &room, int x, int y) {
   if (x < 0 || y < 0 || x >= room.width || y >= room.height) return false;
-  return room.grid[x][y] != TileType::WALL;
+  // RoomTemplate.grid is row-major: grid[y][x] (matches RoomGenerator + LDtkLoader).
+  return room.grid[y][x] != TileType::WALL;
 }
 
 inline int manhattan(Tile a, Tile b) {
