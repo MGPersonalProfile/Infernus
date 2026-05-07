@@ -34,8 +34,8 @@
     "animation": {
         "frameWidth": 32,
         "frameHeight": 32,
-        "idle": { "frames": 4, "speed": 0.15 },
-        "run": { "frames": 6, "speed": 0.1 },
-        "attack": { "frames": 4, "speed": 0.08 }
+        "idle": { "frames": 8, "speed": 0.15 },
+        "run": { "frames": 8, "speed": 0.1 },
+        "attack": { "frames": 8, "speed": 0.08 }
     }
 }

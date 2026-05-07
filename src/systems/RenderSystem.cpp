@@ -119,11 +119,12 @@ void RenderSystem::update(Registry &registry) {
     float fillRatio =
         std::max(0.0f, (float)health.currentHP / (float)health.maxHP);
 
+    // Floating enemy HP bar — dark bg + red fill (infernal palette, no green)
     DrawRectangle((int)barX, (int)barY, (int)Constants::HP_BAR_WIDTH,
-                  (int)Constants::HP_BAR_HEIGHT, MAROON);
+                  (int)Constants::HP_BAR_HEIGHT, Color{40, 10, 10, 220});
     DrawRectangle((int)barX, (int)barY,
                   (int)(Constants::HP_BAR_WIDTH * fillRatio),
-                  (int)Constants::HP_BAR_HEIGHT, GREEN);
+                  (int)Constants::HP_BAR_HEIGHT, Color{200, 50, 40, 255});
     TextUtils::draw(TextFormat("%d", health.currentHP), (int)barX, (int)(barY - 12),
              10, WHITE);
   }

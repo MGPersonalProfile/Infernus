@@ -1082,7 +1082,7 @@ void Game::update(float deltaTime) {
         int heal = hp.maxHP * 3 / 10;
         hp.currentHP = std::min(hp.currentHP + heal, hp.maxHP);
         AudioManager::getInstance().playSFX("menu_confirm");
-        screenEffects.addFlash(Color{50, 200, 50, 80}, 0.3f);
+        screenEffects.addFlash(Color{220, 180, 100, 80}, 0.3f); // amber heal flash (paleta Circulo VII)
       }
       // Advance
       if (runMap.isBossNext()) {
@@ -1414,14 +1414,14 @@ void Game::drawHUD() {
     TextUtils::drawOutlined(TextFormat("HP %d/%d", health.currentHP, health.maxHP), 25, 23, 12,
              WHITE, 2);
 
-    // Stamina Bar (dark bg, green fill, gold border)
+    // Stamina Bar (dark bg, amber fill, gold border) — Circulo VII palette
     float stRatio = stam.currentStamina / stam.maxStamina;
-    DrawRectangle(20, 48, 200, 14, Color{5, 25, 5, 220});
+    DrawRectangle(20, 48, 200, 14, Color{25, 18, 8, 220});
     int stFill = (int)(200 * stRatio);
-    DrawRectangleGradientV(20, 48, stFill, 7, Color{50, 200, 50, 255},
-                           Color{30, 140, 30, 255});
-    DrawRectangleGradientV(20, 55, stFill, 7, Color{25, 120, 25, 255},
-                           Color{15, 80, 15, 255});
+    DrawRectangleGradientV(20, 48, stFill, 7, Color{230, 190, 90, 255},
+                           Color{180, 140, 60, 255});
+    DrawRectangleGradientV(20, 55, stFill, 7, Color{160, 120, 50, 255},
+                           Color{110, 80, 30, 255});
     DrawRectangleLinesEx({20, 48, 200, 14}, 1.0f, Color{150, 130, 70, 180});
   }
 
@@ -2180,7 +2180,7 @@ void Game::drawAbilitySelect() {
     auto &synDefs = synergySystem.getDefs();
     int sy = 32;
     for (int i = 0; i < (int)synStates.size(); i++) {
-      Color col = synStates[i].active ? Color{100, 255, 100, 255}
+      Color col = synStates[i].active ? Color{230, 190, 100, 255}
                                       : Color{80, 80, 80, 255};
       TextUtils::draw(synDefs[i].name.c_str(), 15, sy, 10, col);
       sy += 14;
@@ -2590,14 +2590,14 @@ void Game::drawInfoMenu() {
     };
     stat("HP Max", TextFormat("%d", ps.finalMaxHP), Color{220, 80, 80, 255});
     stat("Dano", TextFormat("%d", ps.finalDamage), Color{220, 170, 60, 255});
-    stat("Velocidad", TextFormat("%.0f", ps.finalSpeed), Color{80, 200, 80, 255});
+    stat("Velocidad", TextFormat("%.0f", ps.finalSpeed), Color{220, 200, 140, 255});
     stat("Stamina", TextFormat("%.0f", ps.finalMaxStamina),
-         Color{80, 180, 220, 255});
+         Color{200, 160, 90, 255});
     stat("Crit", TextFormat("%.0f%%", ps.finalCritChance * 100.0f),
          Color{255, 200, 60, 255});
     if (ps.finalLifesteal > 0.0f)
       stat("Robo Vida", TextFormat("%.0f%%", ps.finalLifesteal * 100.0f),
-           Color{180, 255, 180, 255});
+           Color{220, 130, 80, 255});
     if (ps.finalThorns > 0.0f)
       stat("Espinas", TextFormat("%.0f%%", ps.finalThorns * 100.0f),
            Color{200, 120, 80, 255});
@@ -2653,7 +2653,7 @@ void Game::drawInfoMenu() {
         if (ry + 14 > bottomLimit) break;
         bool act = states[i].active;
         if (!act) continue; // Only show active synergies!
-        Color col = Color{120, 255, 120, 255};
+        Color col = Color{230, 190, 100, 255}; // active synergy: amber/gold
         DrawRectangle(rx, ry + 2, 6, 8, col);
         std::string n = TextUtils::truncate(defs[i].name, 10, fullW - 14);
         TextUtils::draw(n.c_str(), rx + 15, ry, 11, col);
@@ -3159,9 +3159,9 @@ void Game::drawRest() {
 
     // Show heal preview
     TextUtils::drawCentered(TextFormat("Curacion: +%d HP", heal),
-             mainY + 105, 14, Color{80, 220, 80, 255}, screenWidth);
+             mainY + 105, 14, Color{230, 180, 90, 255}, screenWidth);
     TextUtils::drawCentered(TextFormat("HP despues: %d / %d", newHP, hp.maxHP),
-             mainY + 130, 12, Color{150, 200, 150, 200}, screenWidth);
+             mainY + 130, 12, Color{200, 170, 110, 200}, screenWidth);
   }
 
   // Pulsing prompt

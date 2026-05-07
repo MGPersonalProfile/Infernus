@@ -120,13 +120,14 @@ public:
 
     int textBudget = maxWidth - 12; // box + margin
     for (int i = 0; i < (int)states.size(); i++) {
-      Color col = states[i].active ? Color{100, 255, 100, 200}
-                                   : Color{60, 60, 60, 100};
+      // Active synergy: amber/gold (Circulo VII palette, no green)
+      Color col = states[i].active ? Color{230, 190, 100, 220}
+                                   : Color{60, 50, 40, 100};
       DrawRectangle(x, y + i * 14, 8, 10, col);
       std::string label = TextUtils::truncate(defs[i].name, 10, textBudget);
       TextUtils::draw(label.c_str(), x + 12, y + i * 14 - 1, 10,
-               states[i].active ? Color{200, 255, 200, 255}
-                                : Color{80, 80, 80, 150});
+               states[i].active ? Color{230, 200, 130, 255}
+                                : Color{80, 70, 60, 150});
     }
   }
 };
