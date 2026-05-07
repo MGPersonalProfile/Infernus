@@ -1,0 +1,247 @@
+{
+    "_schema": "INFERNUS SFX Specifications v1.0",
+    "_description": "Sound effect specifications for ChipTone/jsfxr generation. Each entry includes parameters for procedural audio generation.",
+    "_tool": "Generate via https://sfxr.me/ or https://tonnosp.itch.io/chiptone",
+
+    "combat": {
+        "sword_swing": {
+            "category": "hit",
+            "description": "Quick sword slash through air",
+            "duration_ms": 150,
+            "jsfxr_preset": "hit",
+            "notes": "High frequency sweep down, short decay"
+        },
+        "sword_whoosh": {
+            "category": "movement",
+            "description": "Wind-up sword movement",
+            "duration_ms": 200,
+            "jsfxr_preset": "powerup",
+            "notes": "Softer than swing, rising pitch"
+        },
+        "hit_flesh": {
+            "category": "hit",
+            "description": "Weapon connecting with flesh",
+            "duration_ms": 100,
+            "jsfxr_preset": "hit",
+            "notes": "Low thud + squelch, short"
+        },
+        "hit_armor": {
+            "category": "hit",
+            "description": "Weapon connecting with armored enemy",
+            "duration_ms": 120,
+            "jsfxr_preset": "hit",
+            "notes": "Metallic clank, slightly longer than flesh"
+        },
+        "parry_clang": {
+            "category": "hit",
+            "description": "Perfect parry timing clang",
+            "duration_ms": 300,
+            "jsfxr_preset": "hit",
+            "notes": "Loud metallic ring, satisfying reverb tail"
+        },
+        "dagger_slash": {
+            "category": "hit",
+            "description": "Fast dual dagger slash",
+            "duration_ms": 80,
+            "jsfxr_preset": "hit",
+            "notes": "Two quick high-pitched slices"
+        }
+    },
+
+    "abilities": {
+        "fire_charge": {
+            "category": "powerup",
+            "description": "Ranged enemy charging fire spell",
+            "duration_ms": 400,
+            "jsfxr_preset": "powerup",
+            "notes": "Rising pitch with crackling, building intensity"
+        },
+        "fire_cast": {
+            "category": "explosion",
+            "description": "Fire spell release",
+            "duration_ms": 250,
+            "jsfxr_preset": "explosion",
+            "notes": "Sharp burst + fire whoosh"
+        },
+        "bomb_throw": {
+            "category": "movement",
+            "description": "Bomber throwing a bomb",
+            "duration_ms": 150,
+            "jsfxr_preset": "jump",
+            "notes": "Quick arc sound, medium pitch"
+        },
+        "bomb_fuse": {
+            "category": "blip",
+            "description": "Bomb fuse sizzling",
+            "duration_ms": 500,
+            "jsfxr_preset": "blip",
+            "notes": "Continuous crackle/sizzle loop"
+        },
+        "explosion_big": {
+            "category": "explosion",
+            "description": "Big bomb explosion (bomber death)",
+            "duration_ms": 600,
+            "jsfxr_preset": "explosion",
+            "notes": "Heavy bass boom + debris scatter, longest SFX"
+        },
+        "dash_whoosh": {
+            "category": "movement",
+            "description": "Player dash",
+            "duration_ms": 200,
+            "jsfxr_preset": "jump",
+            "notes": "Quick wind rush, low-to-high sweep"
+        }
+    },
+
+    "enemies": {
+        "enemy_grunt": {
+            "category": "hit",
+            "description": "Generic enemy attack grunt",
+            "duration_ms": 150,
+            "jsfxr_preset": "hit",
+            "notes": "Low guttural sound"
+        },
+        "enemy_death": {
+            "category": "hit",
+            "description": "Generic enemy death sound",
+            "duration_ms": 300,
+            "jsfxr_preset": "hit",
+            "notes": "Descending pitch, wet thud"
+        },
+        "brute_roar": {
+            "category": "powerup",
+            "description": "Tank enemy roar before attack",
+            "duration_ms": 500,
+            "jsfxr_preset": "powerup",
+            "notes": "Low rumble building to peak, intimidating"
+        },
+        "shadow_death": {
+            "category": "powerup",
+            "description": "Assassin death - dissolves into shadow",
+            "duration_ms": 400,
+            "jsfxr_preset": "powerup",
+            "notes": "Reverse reverb, fading high pitch"
+        },
+        "fire_death": {
+            "category": "explosion",
+            "description": "Ranged enemy death - fire dissipation",
+            "duration_ms": 350,
+            "jsfxr_preset": "explosion",
+            "notes": "Small explosion + sizzle fadeout"
+        },
+        "maniac_giggle": {
+            "category": "blip",
+            "description": "Bomber's maniacal laugh before throw",
+            "duration_ms": 300,
+            "jsfxr_preset": "blip",
+            "notes": "3 quick rising blips, comical/unsettling"
+        }
+    },
+
+    "boss": {
+        "boss_roar": {
+            "category": "powerup",
+            "description": "Minotaur roar before slam",
+            "duration_ms": 800,
+            "jsfxr_preset": "powerup",
+            "notes": "Deep, reverberant, terrifying. Longest enemy SFX."
+        },
+        "ground_slam": {
+            "category": "explosion",
+            "description": "Minotaur fist/hoof slam on ground",
+            "duration_ms": 500,
+            "jsfxr_preset": "explosion",
+            "notes": "Massive bass impact + rumble tail"
+        },
+        "boss_charge_roar": {
+            "category": "powerup",
+            "description": "Minotaur charge preparation",
+            "duration_ms": 600,
+            "jsfxr_preset": "powerup",
+            "notes": "Snorting + building rumble"
+        },
+        "boss_death_roar": {
+            "category": "explosion",
+            "description": "Minotaur death - dramatic final roar",
+            "duration_ms": 1200,
+            "jsfxr_preset": "explosion",
+            "notes": "Longest SFX in game. Deep roar + reverb + silence"
+        }
+    },
+
+    "ui": {
+        "menu_select": {
+            "category": "blip",
+            "description": "Menu option selected",
+            "duration_ms": 50,
+            "jsfxr_preset": "blip",
+            "notes": "Quick high-pitched blip"
+        },
+        "menu_confirm": {
+            "category": "powerup",
+            "description": "Menu choice confirmed",
+            "duration_ms": 100,
+            "jsfxr_preset": "powerup",
+            "notes": "Rising two-tone confirm"
+        },
+        "level_up": {
+            "category": "powerup",
+            "description": "Level/room clear fanfare",
+            "duration_ms": 500,
+            "jsfxr_preset": "powerup",
+            "notes": "Ascending arpeggio, triumphant"
+        },
+        "death_cry": {
+            "category": "hit",
+            "description": "Player death sound",
+            "duration_ms": 500,
+            "jsfxr_preset": "hit",
+            "notes": "Descending, dramatic, gut-punch impact"
+        },
+        "loot_pickup": {
+            "category": "blip",
+            "description": "Health orb or item pickup",
+            "duration_ms": 80,
+            "jsfxr_preset": "blip",
+            "notes": "Sparkle sound, positive feedback"
+        }
+    },
+
+    "environment": {
+        "mace_slam": {
+            "category": "explosion",
+            "description": "Heavy weapon hitting ground",
+            "duration_ms": 400,
+            "jsfxr_preset": "explosion",
+            "notes": "Stone crack + dust settle"
+        },
+        "mace_raise": {
+            "category": "movement",
+            "description": "Heavy weapon being lifted",
+            "duration_ms": 200,
+            "jsfxr_preset": "jump",
+            "notes": "Metal scrape, ascending"
+        },
+        "sword_return": {
+            "category": "movement",
+            "description": "Sword returning to idle position",
+            "duration_ms": 100,
+            "jsfxr_preset": "blip",
+            "notes": "Soft metallic clink"
+        },
+        "hit_light": {
+            "category": "hit",
+            "description": "Light impact (assassin hit)",
+            "duration_ms": 60,
+            "jsfxr_preset": "hit",
+            "notes": "Quick, not very loud, slicing feel"
+        },
+        "hit_heavy_armor": {
+            "category": "hit",
+            "description": "Heavy hit on boss armor",
+            "duration_ms": 200,
+            "jsfxr_preset": "hit",
+            "notes": "Deep metallic resonance, longer than regular hit_armor"
+        }
+    }
+}
