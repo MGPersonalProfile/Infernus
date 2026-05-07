@@ -277,7 +277,8 @@ if _startup_stats["archived"] or _startup_stats["expired"]:
 @mcp.tool
 def request_antigravity(task: str, context: str = "", priority: str = "medium",
                         timeout_hours: float = DEFAULT_TIMEOUT_HOURS,
-                        force: bool = False) -> str:
+                        force: bool = False,
+                        tags: list[str] | None = None) -> str:
     """Envia una tarea a Antigravity (Gemini).
 
     Delega: imagenes, sprites, web search, browser, analisis visual, paletas.
@@ -289,6 +290,7 @@ def request_antigravity(task: str, context: str = "", priority: str = "medium",
         priority: low | medium | high | critical
         timeout_hours: Horas antes de considerar la tarea como stale (default 2)
         force: Si True, salta el check de duplicados (default False)
+        tags: Etiquetas opcionales para filtrar luego (ej: ['sprite', 'ui', 'audio'])
     """
     # Lightweight hygiene before creating a new task (no-op if nothing to do)
     _auto_maintenance()
@@ -322,11 +324,12 @@ def request_antigravity(task: str, context: str = "", priority: str = "medium",
         "deadline": deadline,
         "completed_at": None,
         "batch_id": None,
+        "tags": list(tags) if tags else [],
     }
 
     _write_json(INBOX_DIR / f"{task_id}.json", task_data)
     _log("task_created", task_id=task_id, to="antigravity", priority=priority,
-         summary=task[:120], deadline=deadline)
+         summary=task[:120], deadline=deadline, tags=task_data["tags"])
 
     return (
         f"Tarea '{task_id}' creada en buzon de Antigravity.\n"
@@ -418,25 +421,32 @@ def send_task_to_claude(task: str, context: str = "", priority: str = "medium") 
 
 
 @mcp.tool
-def list_pending_tasks(direction: str = "both") -> str:
+def list_pending_tasks(direction: str = "both", tag: str = "") -> str:
     """Lista tareas pendientes con edad y deadline.
 
     Args:
         direction: 'to_antigravity', 'to_claude', o 'both'
+        tag: si se proporciona, filtra solo tareas que tengan ese tag
     """
     results = []
+
+    def _matches_tag(data: dict) -> bool:
+        if not tag:
+            return True
+        return tag in (data.get("tags") or [])
 
     if direction in ("to_antigravity", "both"):
         for f in sorted(INBOX_DIR.glob("*.json")):
             data = _read_json(f)
-            if data.get("status") == "pending":
+            if data.get("status") == "pending" and _matches_tag(data):
                 age = _task_age_str(data.get("created_at", ""))
                 stale = _is_stale(data.get("created_at", ""))
                 stale_mark = " [STALE]" if stale else ""
                 batch = f" batch:{data['batch_id']}" if data.get("batch_id") else ""
+                tags_str = f" #{','.join(data['tags'])}" if data.get("tags") else ""
                 results.append(
                     f"  -> Antigravity [{data['id']}] {data.get('priority', '?')}"
-                    f" | {age} old{stale_mark}{batch}\n"
+                    f" | {age} old{stale_mark}{batch}{tags_str}\n"
                     f"     {data.get('task', '')[:100]}"
                 )
 
@@ -1299,6 +1309,43 @@ def bridge_health() -> str:
     ]
     _log("bridge_health_check")
     return "\n".join(lines)
+
+
+@mcp.tool
+def snapshot_plans(label: str = "") -> str:
+    """Snapshotea los planes del proyecto a archive/plans/<date>/.
+
+    Captura: joint_plan.md, claude_analysis.md, BRIDGE_V3_PLAN.md, MASTER_PLAN.md
+    cuando existen. Util antes de cambios mayores para tener historia auditable.
+
+    Args:
+        label: etiqueta opcional para el snapshot (ej. 'pre-v3', 'before-migration')
+    """
+    import shutil
+    candidates = [
+        PROJECT_ROOT / "joint_plan.md",
+        PROJECT_ROOT / "claude_analysis.md",
+        BRIDGE_DIR / "BRIDGE_V3_PLAN.md",
+        PROJECT_ROOT / "docs" / "MASTER_PLAN.md",
+    ]
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    folder_name = f"{ts}_{label}" if label else ts
+    snap_dir = ARCHIVE_DIR / "plans" / folder_name
+    snap_dir.mkdir(parents=True, exist_ok=True)
+
+    saved = []
+    for path in candidates:
+        if path.exists() and path.is_file():
+            dest = snap_dir / path.name
+            shutil.copy2(str(path), str(dest))
+            saved.append(path.name)
+
+    if not saved:
+        snap_dir.rmdir()  # nothing to keep
+        return "Sin planes que snapshotear."
+
+    _log("plans_snapshotted", label=label, files=saved, dir=str(snap_dir))
+    return f"Snapshot guardado en {snap_dir}:\n  " + "\n  ".join(saved)
 
 
 @mcp.tool
