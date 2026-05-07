@@ -2,8 +2,10 @@
 #include "../components/AnimState.h"
 #include "../components/Animation.h"
 #include "../components/Sprite.h"
+#include "../components/Transform.h"
 #include "../core/ECS.h"
 #include "../core/ResourceManager.h"
+#include "../systems/AnimEventDispatcher.h"
 
 class AnimationSystem {
 public:
@@ -35,6 +37,15 @@ public:
       anim.startY = 0;
 
       sprite.sourceRect = {0, 0, clip.frameWidth, clip.frameHeight};
+
+      // Populate animation events from JSON (only on first transition; cached
+      // per-clip thereafter since AnimEvent vector lives on the AnimClip).
+      if (clip.events.empty()) {
+        std::string key = AnimEventDispatcher::keyFromPath(clip.texturePath);
+        if (auto *evs = AnimEventDispatcher::eventsFor(key)) {
+          clip.events = *evs;
+        }
+      }
     }
 
     // Tick all animations
@@ -49,6 +60,7 @@ public:
       anim.timer += deltaTime;
       if (anim.timer >= anim.frameSpeed) {
         anim.timer = 0.0f;
+        int prevFrame = anim.currentFrame;
         anim.currentFrame++;
 
         if (anim.currentFrame >= anim.frames) {
@@ -62,6 +74,28 @@ public:
               auto &as = registry.getComponent<AnimState>(entity);
               if (as.current == AnimStateType::ATTACK)
                 as.setState(AnimStateType::IDLE);
+            }
+          }
+        }
+
+        // Animation events: fire any event whose `frame` matches the new
+        // currentFrame. Looks up by the texturePath stem of the active clip.
+        if (anim.currentFrame != prevFrame &&
+            registry.hasComponent<AnimState>(entity)) {
+          auto &as = registry.getComponent<AnimState>(entity);
+          auto it = as.clips.find(as.current);
+          if (it != as.clips.end() && !it->second.events.empty()) {
+            // Get position for spatial events
+            float ex = 0.0f, ey = 0.0f;
+            if (registry.hasComponent<Transform2D>(entity)) {
+              auto &t = registry.getComponent<Transform2D>(entity);
+              ex = t.x + it->second.frameWidth * 0.5f;
+              ey = t.y + it->second.frameHeight * 0.75f;
+            }
+            for (const auto &ev : it->second.events) {
+              if (ev.frame == anim.currentFrame) {
+                AnimEventDispatcher::dispatch(ev, ex, ey);
+              }
             }
           }
         }

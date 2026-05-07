@@ -2,6 +2,7 @@
 #include "../debug/DebugPanel.h"
 #include "../debug/Profiler.h"
 #include "../scripting/LuaEngine.h"
+#include "../systems/AnimEventDispatcher.h"
 #include "../systems/PartikelEmitters.h"
 #include "../world/LDtkRoomLoader.h"
 #include "../components/AIBehavior.h"
@@ -58,6 +59,7 @@ void Game::init() {
   abilitySystem.loadActiveAbilities("assets/data/active_abilities.json");
   synergySystem.loadSynergies("assets/data/synergies.json");
   itemSystem.loadItems("assets/data/items.json");
+  AnimEventDispatcher::load("assets/data/anim_events.json");
   saveManager.load();
 
   // Preload art textures so they're ready before the first frame

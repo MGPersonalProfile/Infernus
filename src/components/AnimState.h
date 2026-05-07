@@ -7,6 +7,16 @@
 
 enum class AnimStateType { IDLE, RUN, ATTACK, DEATH, CHARGE, SLAM };
 
+// AnimEvent — fired when the current frame of a clip transitions to `frame`.
+// Data-driven via assets/data/anim_events.json. Actions:
+//   "spawn_particles" — param = "blood" | "dust" | "fire" | "shockwave"
+//   "play_sfx"        — param = sfx name (e.g. "footstep", "swing")
+struct AnimEvent {
+  int frame = 0;
+  std::string action;
+  std::string param;
+};
+
 struct AnimClip {
   std::string texturePath;
   int frames = 1;
@@ -14,6 +24,7 @@ struct AnimClip {
   float frameWidth = 0.0f;
   float frameHeight = 0.0f;
   bool loop = true;
+  std::vector<AnimEvent> events;
 };
 
 // Manages multiple animation clips (idle, run, attack, etc.) and switches

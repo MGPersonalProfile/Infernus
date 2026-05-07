@@ -1,0 +1,22 @@
+{
+    "_comment": "Animation events fired when a clip's currentFrame transitions to `frame`. Antigravity edits this file freely. Schema per clip key: { 'frame': int, 'action': str, 'param': str }. Actions: 'spawn_particles' (param: blood|dust|fire|shockwave), 'play_sfx' (param: sfx name).",
+    "_keys": "Format: <texture_basename>_<state>. e.g. 'knight_run' or 'minotaur_slam'. Matched against AnimClip.texturePath stem.",
+
+    "knight_run":      [{"frame": 1, "action": "play_sfx", "param": "footstep"},
+                        {"frame": 5, "action": "play_sfx", "param": "footstep"}],
+    "knight_attack":   [{"frame": 3, "action": "play_sfx", "param": "attack_light"},
+                        {"frame": 4, "action": "spawn_particles", "param": "dust"}],
+
+    "warrior_run":     [{"frame": 1, "action": "play_sfx", "param": "footstep"},
+                        {"frame": 5, "action": "play_sfx", "param": "footstep"}],
+    "warrior_attack":  [{"frame": 3, "action": "play_sfx", "param": "attack_heavy"},
+                        {"frame": 4, "action": "spawn_particles", "param": "dust"}],
+
+    "rogue_run":       [{"frame": 0, "action": "play_sfx", "param": "footstep"},
+                        {"frame": 4, "action": "play_sfx", "param": "footstep"}],
+    "rogue_attack":    [{"frame": 2, "action": "play_sfx", "param": "attack_light"}],
+
+    "minotaur_slam":   [{"frame": 2, "action": "spawn_particles", "param": "shockwave"},
+                        {"frame": 2, "action": "play_sfx", "param": "boss_slam"}],
+    "minotaur_charge": [{"frame": 0, "action": "spawn_particles", "param": "dust"}]
+}
