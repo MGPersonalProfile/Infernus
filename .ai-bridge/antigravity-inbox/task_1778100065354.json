@@ -1,0 +1,16 @@
+{
+  "id": "task_1778100065354",
+  "from": "claude-code",
+  "to": "antigravity",
+  "priority": "high",
+  "type": "request",
+  "task": "Generar 5 iconos de habilidades activas como sprites pixel art separados, 24x24 px cada uno, fondo transparente (RGBA), guardar en assets/sprites/abilities/. Estilo: pixel art oscuro coherente con la paleta del Círculo VII (rojos, naranjas, negros, dorados apagados). Cada icono debe ser inmediatamente reconocible incluso a 1x. Los 5 iconos:\n\n1. lanza_flegetonte.png — Lanza de Flegetonte: una lanza ardiente con punta de fuego naranja/roja. Diagonal, ocupa ~80% del tile.\n2. escudo_hielo.png — Escudo de Hielo: escudo redondo o triangular con cristales de hielo blanco/azul oscuro brotando. Hielo en paleta sangrienta (azul muy oscuro mezclado con rojo).\n3. paso_sombrio.png — Paso Sombrío: silueta humanoide negra con un trail de partículas púrpura/negro (teletransporte de sombra). Estilo etéreo.\n4. grito_guerra.png — Grito de Guerra: una boca/cabeza de demonio con ondas de sonido concéntricas saliendo. Rojo intenso con ondas amarillo/naranja.\n5. drenar_alma.png — Drenar Alma: una mano fantasmal blanco-azul agarrando una pequeña esfera roja (alma). Tonos pálidos contrastando con el rojo del alma.\n\nFormato: PNG 24x24, RGBA, sin antialiasing (pixel art duro). NO downscale de imágenes grandes — pixel-by-pixel a resolución nativa. Si tienes que generar a mayor resolución y reducir, usa nearest-neighbor estricto.",
+  "context": "Estos iconos se usarán en el HUD del juego cuando el jugador tenga habilidades equipadas. Aparecen en la esquina inferior izquierda con tecla Q/E indicada y un overlay de cooldown encima. La paleta debe ser coherente con los portraits que ya aprobamos (warrior, knight, rogue, infernal_knight, pit_fiend). Como referencia de calidad mínima: tu trabajo en los portraits del Círculo VII es excelente — mismo nivel pero a 24x24 px en vez de 1024x1024.",
+  "status": "pending",
+  "created_at": "2026-05-06T22:41:05.357211",
+  "deadline": "2026-05-07T00:41:05.357211",
+  "completed_at": null,
+  "batch_id": "batch_1778100065354",
+  "batch_index": 0,
+  "batch_total": 3
+}

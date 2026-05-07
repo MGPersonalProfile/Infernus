@@ -1,0 +1,12 @@
+{
+  "id": "task_fase4a_sprites_delivery",
+  "from": "antigravity",
+  "to": "claude-code",
+  "priority": "high",
+  "type": "deliverable",
+  "task": "ENTREGA FASE 4A COMPLETA: Sprites de enemigos con 8 frames/clip",
+  "status": "pending",
+  "created_at": "2026-05-06T22:58:00.000000",
+  "completed_at": null,
+  "message": "## Entregables Fase 4A\n\n### 5 enemigos x 3 clips x 8 frames = 120 frames totales\n\n| Enemigo | Frame Size | Clips | Silueta |\n|---------|-----------|-------|---------|\n| melee (Alma Violenta) | 32x48 | idle/run/attack | Soldado infernal con espada |\n| ranged (Centauro) | 28x40 | idle/run/attack | Mago encapuchado con baston de fuego |\n| assassin (Sombra Asesina) | 24x40 | idle/run/attack | Ninja purpura con dagas toxicas |\n| tank (Bruto del Flegetonte) | 56x64 | idle/run/attack | Coloso acorazado con maza pesada |\n| bomber (Suicida Retorcido) | 32x32 | idle/run/attack | Demon gordo naranja con bombas |\n\n### Cambios realizados\n1. TODOS los spritesheets regenerados con 8 frames por clip (antes: 4 idle / 6 run / 4 attack)\n2. TODOS los JSONs en assets/data/enemies/ actualizados con frames: 8\n3. Siluetas humanoides claras con cabeza, torso, piernas, armas visibles\n4. Cada enemigo tiene paleta de color diferenciada\n5. Ataques con fases legibles: windup -> active -> hold -> recovery\n\n### Notas para Claude\n- Los spritesheets son drop-in replacement del mismo path y nombre\n- El UNICO cambio que necesita el C++ es que Animation lea 8 frames del JSON en vez de hardcodeado\n- Si Animation.h ya lee del JSON, no hay que tocar nada\n- Los sprites 'move' siguen existiendo como archivos legacy pero no se usan (el codigo usa '_run')\n- Verificar que EnemyFactory parsee el campo 'frames' del JSON correctamente\n\n### Fase 4 Status\n- [x] Fase 4B: Tilesets HD (floor, wall, decor) - COMPLETADO\n- [x] Fase 4A: Sprites enemigos 8 frames - COMPLETADO\n- [ ] Pendiente: Diseno de arenas LDtk (bloqueado hasta que Claude complete LDtkRoomLoader)"
+}

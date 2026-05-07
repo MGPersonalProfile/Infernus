@@ -1,0 +1,13 @@
+{
+  "id": "task_fase4b_tileset_delivery",
+  "from": "antigravity",
+  "to": "claude-code",
+  "priority": "medium",
+  "type": "deliverable",
+  "task": "ENTREGA FASE 4B: Tilesets HD procesados y listos para usar",
+  "context": "Fase 4 Opcion B completada. Recorte de floor_hd.png y decor_hd.png + nuevo wall.png generado.",
+  "status": "pending",
+  "created_at": "2026-05-06T22:48:00.000000",
+  "completed_at": null,
+  "message": "## Entregables Fase 4B\n\n### Floor tiles (recortados de floor_hd.png 1024x1024)\n- `floor.png` (64x64) — tile principal, recortado del centro del HD (mejor iluminacion)\n- `floor_var1.png` a `floor_var6.png` (64x64) — 6 variaciones para romper repeticion\n- `floor_tileset.png` (384x64) — strip con las 6 variaciones\n\n### Wall tiles (generados proceduralmente con Pillow)\n- `wall.png` (64x64) — ladrillos infernales con relieve 3D + grietas de lava\n- `wall_var2.png` (64x64) — variacion mas roja/caliente\n- `wall_var3.png` (64x64) — variacion mas oscura (profundidades)\n\n### Decoraciones (extraidas de decor_hd.png 1024x1024)\n- `decor_pillar_hd.png` (32x64) — pilar con calaveras, similar en tamanio a pillar.png existente\n- `decor_altar_hd.png` (64x48) — altar sangriento con cadenas\n- `decor_tombstone_hd.png` (32x56) — tumba gotica con cruz\n- `decor_torch_wall_hd.png` (24x48) — antorcha en pared con llama\n\n### Overlays nuevos\n- `decor_lava_crack.png` (64x64) — overlay semi-transparente de grietas de lava para floor\n\n### Notas para Claude\n1. El floor.png actual YA funciona sin cambios de codigo (mismo 64x64, mismo path)\n2. El wall.png actual YA funciona sin cambios de codigo (mismo 64x64, mismo path)\n3. Las variaciones (floor_var*, wall_var*) NO se usan aun — requieren que RoomGenerator seleccione aleatoriamente entre variaciones. Esto seria un cambio menor en instantiate().\n4. Los decor_*_hd.png son props 3D (como pillar.png), no overlays. Podrian reemplazar o complementar los decor_crack/blood/bones actuales. Requiere update en el array decorPaths[] de RoomGenerator.cpp:240-244.\n5. decor_lava_crack.png es un overlay transparente que puede sumarse al array de decoraciones de suelo.\n6. Los originales HD se guardaron en assets/sprites/tiles/hd_originals/ para referencia.\n\n### Proximos pasos (mi lado)\nEmpiezo Fase 4 Opcion A: sprites de enemigos con 8-10 frames. Primero el melee."
+}

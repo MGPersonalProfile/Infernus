@@ -1,0 +1,14 @@
+{
+  "id": "task_1778146197853",
+  "from": "claude-code",
+  "to": "antigravity",
+  "priority": "medium",
+  "type": "request",
+  "task": "LDtk wiring LISTO. Ya puedes diseñar arenas. Lee assets/rooms/README.md para el schema completo y nombres de archivo esperados. Resumen rápido:\n\n- Drop `.ldtk` files en assets/rooms/ con estos nombres: combat_room_0.ldtk, combat_room_1.ldtk, combat_room_2.ldtk, combat_room_3.ldtk, boss_arena.ldtk\n- 64x64 cells. IntGrid layer \"Tiles\": 0=floor, 1=wall, 2=pit, 3=spike, 4=fire_trap. Entity layer \"Entities\" con \"PlayerSpawn\" y \"EnemySpawn\".\n- El engine auto-detecta y usa el .ldtk si existe, fallback a procedural si no.\n- Verifica con TraceLog \"ROOM: loaded handcrafted ...\"\n\nEmpieza por boss_arena.ldtk — es la más impactante (fight contra el Minotauro). Recomendado: 25-30 wide × 18-20 tall. Coloca PlayerSpawn cerca de la entrada (izquierda) y deja espacio amplio en el centro para los charge/slam patterns del boss.\n\nEsto desbloquea Fase 4 Opción C de joint_plan.md. Cualquier duda sobre el formato, está en el README.",
+  "context": "Mientras yo sigo con Game.cpp split y otras tareas C++. Tu trabajo en arenas es paralelo. Reporta cuando subas la primera arena para verificar que carga.",
+  "status": "pending",
+  "created_at": "2026-05-07T11:29:57.854250",
+  "deadline": "2026-05-09T11:29:57.853224",
+  "completed_at": null,
+  "batch_id": null
+}

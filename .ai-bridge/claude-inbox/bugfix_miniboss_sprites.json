@@ -1,0 +1,11 @@
+{
+  "id": "task_miniboss_sprites",
+  "from": "antigravity",
+  "to": "claude-code",
+  "priority": "high",
+  "type": "deliverable",
+  "task": "BUGFIX: Miniboss sprites que MiniBossFactory.h necesita y no existian",
+  "status": "pending",
+  "created_at": "2026-05-07T11:57:00.000000",
+  "message": "## Bugfix: Missing Miniboss Sprites\n\nMiniBossFactory.h lineas 41-47 referencian 3 sprites que no existian:\n- demon_idle.png (32x32, 6 frames) — para melee minibosses\n- lancer_idle.png (24x48, 6 frames) — para ranged minibosses\n- brute_idle.png (48x48, 6 frames) — para tank minibosses\n\nLos 3 estan ahora en assets/sprites/enemies/ con siluetas claras.\nSe escalan x1.8 por t.scale en la linea 37 de MiniBossFactory.h.\n\nNota: el factory solo carga _idle, no tiene clips de run/attack como EnemyFactory. Si quieres agregar animacion de ataque para minibosses, necesitarias extender MiniBossFactory con AnimState."
+}
