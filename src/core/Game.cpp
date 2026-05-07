@@ -284,14 +284,10 @@ void Game::handlePlayerInput(float deltaTime) {
   if (registry.hasComponent<PlayerStats>(playerEntity))
     speed = registry.getComponent<PlayerStats>(playerEntity).finalSpeed;
 
-  if (inputManager.isActionDown(InputAction::MOVE_UP))
-    velocity.vy -= speed;
-  if (inputManager.isActionDown(InputAction::MOVE_DOWN))
-    velocity.vy += speed;
-  if (inputManager.isActionDown(InputAction::MOVE_LEFT))
-    velocity.vx -= speed;
-  if (inputManager.isActionDown(InputAction::MOVE_RIGHT))
-    velocity.vx += speed;
+  // Analog gamepad stick or digital WASD/arrows
+  auto move = inputManager.getMoveAxis();
+  velocity.vx = move.x * speed;
+  velocity.vy = move.y * speed;
 
   // Update facing direction (for attacks) and sprite flip
   auto &playerTransform = registry.getComponent<Transform2D>(playerEntity);

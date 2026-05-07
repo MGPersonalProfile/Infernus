@@ -188,7 +188,20 @@ target_include_directories(test_combat PRIVATE
 )
 target_link_libraries(test_combat PRIVATE raylib)
 
-foreach(TEST_TARGET test_ecs test_combat)
+# Feature tests (A* pathfinding, JSON loader, ActiveAbilities cooldown ticking)
+# Kept self-contained (no AudioManager/PartikelEmitters/Lua linkage) so tests
+# remain fast and isolated.
+add_executable(test_features
+    tests/test_features.cpp
+    src/core/ECS.cpp
+)
+target_include_directories(test_features PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib
+)
+target_link_libraries(test_features PRIVATE raylib)
+
+foreach(TEST_TARGET test_ecs test_combat test_features)
     set_target_properties(${TEST_TARGET} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build"
     )

@@ -14,6 +14,7 @@
 #include "../components/Velocity.h"
 #include "../core/ResourceManager.h"
 #include "../systems/PartikelEmitters.h"
+#include "../utils/JsonLoader.h"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -60,13 +61,13 @@ static AbilityRarity parseRarity(const std::string &s) {
 }
 
 void AbilitySystem::loadAbilities(const std::string &path) {
-  std::ifstream file(path);
-  if (!file.is_open())
-    return;
-
   json data;
-  file >> data;
-
+  if (!JsonLoader::load(path, data)) return; // already logged
+  if (!data.contains("abilities") || !data["abilities"].is_array()) {
+    TraceLog(LOG_WARNING, "JSON: %s — missing or invalid 'abilities' array",
+             path.c_str());
+    return;
+  }
   for (auto &entry : data["abilities"]) {
     AbilityData ab;
     ab.id = entry.value("id", "unknown");
@@ -205,14 +206,13 @@ static DamageType parseDamageType(const std::string &s) {
 }
 
 void AbilitySystem::loadActiveAbilities(const std::string &path) {
-  std::ifstream file(path);
-  if (!file.is_open()) {
-    TraceLog(LOG_WARNING, "ABILITY: Could not open %s", path.c_str());
+  json data;
+  if (!JsonLoader::load(path, data)) return; // already logged
+  if (!data.contains("abilities") || !data["abilities"].is_array()) {
+    TraceLog(LOG_WARNING, "JSON: %s — missing or invalid 'abilities' array",
+             path.c_str());
     return;
   }
-  json data;
-  file >> data;
-
   for (auto &entry : data["abilities"]) {
     ActiveAbilityData a;
     a.id          = entry.value("id", "unknown");

@@ -106,6 +106,29 @@ public:
     return pressed;
   }
 
+  // Analog movement vector. Returns gamepad left-stick if gamepad connected
+  // (with deadzone), else returns digital direction from WASD/arrow keys.
+  // X/Y in [-1.0, 1.0]. Magnitude can be < 1.0 for analog.
+  struct MoveVector { float x = 0.0f; float y = 0.0f; };
+  MoveVector getMoveAxis() const {
+    MoveVector v;
+    if (IsGamepadAvailable(0)) {
+      float ax = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+      float ay = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+      // Radial deadzone (0.2) so the stick doesn't drift on rest
+      float mag = ax * ax + ay * ay;
+      if (mag > 0.04f) { v.x = ax; v.y = ay; return v; }
+    }
+    // Keyboard fallback (digital)
+    if (IsKeyDown(keyBinds.at(InputAction::MOVE_LEFT))) v.x -= 1.0f;
+    if (IsKeyDown(keyBinds.at(InputAction::MOVE_RIGHT))) v.x += 1.0f;
+    if (IsKeyDown(keyBinds.at(InputAction::MOVE_UP))) v.y -= 1.0f;
+    if (IsKeyDown(keyBinds.at(InputAction::MOVE_DOWN))) v.y += 1.0f;
+    return v;
+  }
+
+  bool isGamepadActive() const { return IsGamepadAvailable(0); }
+
 private:
   std::unordered_map<InputAction, int> keyBinds;
   std::unordered_map<InputAction, int> padBinds; // Placholder gamepad mappings
