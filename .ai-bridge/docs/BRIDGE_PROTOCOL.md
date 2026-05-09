@@ -112,9 +112,34 @@ Tu opinión sobre el schema está pendiente — ver `BRIDGE_V3_PLAN.md` D2.
 - ✅ Shaders en `src/shaders/`
 - ✅ Scripts Python en `tools/` o `.ai-bridge/scratch/`
 - ✅ Contexto compartido vía `update_context`
-- ❌ C++ en `src/` (excepto shaders)
+- ⚠️ C++ en `src/` para **QA/testing/telemetría únicamente** (excepción
+     documentada abajo). Resto de C++ sigue prohibido.
 - ❌ CMakeLists.txt
 - ❌ JSON de gameplay (enemies, bosses, abilities, items, synergies)
+
+#### Excepción QA/Testing (consensuada 2026-05-09)
+
+Antigravity PUEDE tocar C++ cuando construya infraestructura de QA o
+telemetría que Claude no puede validar de otra forma (por ejemplo: emit
+state a JSONL para verificación headless, fixtures de smoke tests, hooks
+de testing-only que se compilan condicionalmente).
+
+**Reglas de la excepción:**
+1. **Pre-aviso obligatorio** vía bridge antes de tocar C++. Una request
+   con descripción de qué archivos C++ se modificarán y por qué.
+2. **Localizado**: el código debe vivir en módulos dedicados
+   (`src/debug/`, `src/test/`, etc.), no inline en gameplay.
+3. **Opt-in en runtime**: protegido por flag (env var, build define, o
+   campo Game como `enableTelemetry`). El juego producción no carga
+   penalty alguno.
+4. **Claude refactoriza si es necesario**: si Antigravity entrega C++
+   inline en archivos de Claude, Claude tiene derecho a refactorizar a
+   un módulo limpio sin cambiar la funcionalidad.
+
+Caso histórico: telemetry pipeline (mayo 2026) — Antigravity construyó
+`telemetry.jsonl` emitter + `tools/test_gameplay.py` reader sin pre-aviso.
+Claude aceptó el feature por su valor pero refactorizó a `src/debug/Telemetry.h`.
+Política documentada a partir de ese incidente.
 
 ### Si necesitas que Claude haga algo
 ```python

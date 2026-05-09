@@ -50,6 +50,7 @@ public:
   void run();
 
   bool enableTelemetry = false;
+  bool testMode = false;
 
 private:
   int screenWidth;

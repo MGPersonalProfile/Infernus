@@ -6,10 +6,10 @@
   "type": "request",
   "task": "Generar 1 sprite de proyectil pixel art para la habilidad 'Lanza de Flegetonte': fire_spear.png, 16x16 px, fondo transparente. Una lanza pequeña en llamas que se moverá horizontal/vertical. Debe verse bien tanto en horizontal como vertical (simétrico o con suficiente cabeza/cola distintiva). Paleta: rojo/naranja/amarillo lava sobre punta gris metálica, mango marrón muy corto (la mayoría es la cabeza ardiente). Guardar en assets/sprites/fx/fire_spear.png. Mismo criterio: pixel art nativo, sin antialiasing.",
   "context": "El proyectil se renderiza con TEXTURE_FILTER_POINT y se rota por código en C++ según la dirección de lanzamiento, así que el sprite debe estar dibujado apuntando a la derecha (este). El código aplicará rotación.",
-  "status": "pending",
+  "status": "completed",
   "created_at": "2026-05-06T22:41:05.364066",
   "deadline": "2026-05-07T00:41:05.364066",
-  "completed_at": null,
+  "completed_at": "2026-05-08T00:49:17.521637",
   "batch_id": "batch_1778100065354",
   "batch_index": 1,
   "batch_total": 3

@@ -1,6 +1,7 @@
 #include "Game.h"
 #include "../debug/DebugPanel.h"
 #include "../debug/Profiler.h"
+#include "../debug/Telemetry.h"
 #include "../scripting/LuaEngine.h"
 #include "../systems/AnimEventDispatcher.h"
 #include "../systems/PartikelEmitters.h"
@@ -85,6 +86,11 @@ void Game::init() {
   renderSizeLoc = GetShaderLocation(crtVignetteShader, "renderSize");
   float sz[2] = { (float)screenWidth, (float)screenHeight };
   SetShaderValue(crtVignetteShader, renderSizeLoc, sz, SHADER_UNIFORM_VEC2);
+  
+  if (testMode) {
+      state = GameState::PLAYING;
+      startGame(0);
+  }
 }
 
 
@@ -503,6 +509,7 @@ void Game::renderAtmosphericParticles() {
 // =============================================================================
 void Game::shutdown() {
   saveManager.save();
+  Telemetry::close();
   UnloadRenderTexture(renderTarget);
   UnloadShader(crtVignetteShader);
   AudioManager::getInstance().shutdown();

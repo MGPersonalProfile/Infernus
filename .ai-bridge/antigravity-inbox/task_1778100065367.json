@@ -6,10 +6,10 @@
   "type": "request",
   "task": "Auditoría visual del estado actual del juego. Ejecuta los siguientes pasos:\n\n1. Compila el juego: cd al repo, `cmake -S . -B build -G \"MinGW Makefiles\" && mingw32-make -C build -j8`\n2. Ejecuta el binario `build/INFERNUS.exe` (NO web, es desktop)\n3. Navega: Main Menu → Character Select (elige Warrior) → entra a la primera sala\n4. Captura screenshots de:\n   - Menu principal\n   - Character select\n   - Gameplay normal (idle del jugador)\n   - Gameplay corriendo (player en movimiento — verifica que la cámara hace LOOKAHEAD en dirección de velocidad)\n   - Combate con un enemigo (verifica que aparecen libpartikel BLOOD particles en cada hit)\n   - Hit recibido por player (verifica el HIT PULSE — sprite escala 1.18x)\n   - Dash (verifica DASH STRETCH — sprite estirado en dirección)\n5. Guarda los screenshots en .ai-bridge/scratch/visual_audit_2026-05-06/ con nombres descriptivos\n6. Reporta tus observaciones: ¿se ven los efectos? ¿hay regresiones? ¿algo se ve mal con los nuevos cambios?\n\nRespuesta esperada: lista de screenshots tomados + tu juicio honesto sobre cómo se siente visualmente el juego ahora vs el último estado conocido.",
   "context": "Acabo de implementar Fase 1 (Lua hot-reload + ImGui tuning) y Fase 2 quick wins (camera lookahead, dynamic zoom on lowHP, libpartikel wired, squash & stretch extendido). Necesito una validación visual antes de seguir con Active Abilities. Tienes browser_subagent y screenshot tools. Si el .exe no se puede capturar directamente, ejecuta el binario y captura ventana via Windows screenshot.",
-  "status": "pending",
+  "status": "completed",
   "created_at": "2026-05-06T22:41:05.369441",
   "deadline": "2026-05-07T00:41:05.369441",
-  "completed_at": null,
+  "completed_at": "2026-05-09T01:59:41.356787",
   "batch_id": "batch_1778100065354",
   "batch_index": 2,
   "batch_total": 3

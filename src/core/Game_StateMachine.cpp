@@ -1,6 +1,7 @@
 #include "Game.h"
 #include "../debug/DebugPanel.h"
 #include "../debug/Profiler.h"
+#include "../debug/Telemetry.h"
 #include "../scripting/LuaEngine.h"
 #include "../systems/PartikelEmitters.h"
 #include "../world/LDtkRoomLoader.h"
@@ -954,25 +955,8 @@ void Game::update(float deltaTime) {
   cameraSystem.update(registry, playerEntity, deltaTime);
   updateAtmosphericParticles(deltaTime);
 
-  if (enableTelemetry && registry.isAlive(playerEntity) && registry.hasComponent<Health>(playerEntity) && registry.hasComponent<Transform2D>(playerEntity)) {
-    static float telemetryTimer = 0.0f;
-    telemetryTimer += deltaTime;
-    if (telemetryTimer >= 0.2f) { // emit every 200ms
-      telemetryTimer = 0.0f;
-      auto& h = registry.getComponent<Health>(playerEntity);
-      auto& t = registry.getComponent<Transform2D>(playerEntity);
-      int stam = 0;
-      if (registry.hasComponent<Stamina>(playerEntity)) {
-          stam = (int)registry.getComponent<Stamina>(playerEntity).currentStamina;
-      }
-      std::string stateStr = "PLAYING";
-      if (state == GameState::GAME_OVER) stateStr = "GAME_OVER";
-      else if (state == GameState::VICTORY) stateStr = "VICTORY";
-      
-      printf("TELEMETRY: {\"hp\":%d, \"stamina\":%d, \"x\":%.1f, \"y\":%.1f, \"enemies\":%d, \"state\":\"%s\"}\n", 
-             h.currentHP, stam, t.x, t.y, enemiesAlive, stateStr.c_str());
-      fflush(stdout);
-    }
+  if (enableTelemetry) {
+    Telemetry::tick(registry, playerEntity, state, enemiesAlive, deltaTime);
   }
 
   registry.flushDestroyed();

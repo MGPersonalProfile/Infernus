@@ -49,3 +49,16 @@
 {"timestamp": "2026-05-08T00:17:26.559943", "event": "responses_polled", "count": 1, "task_ids": ["task_1778146197853"]}
 {"timestamp": "2026-05-08T00:32:04.055794", "event": "task_created", "task_id": "task_1778193124049", "to": "antigravity", "priority": "high", "summary": "DEBATE BRIDGE v3 — meta-task. El usuario nos pidió que pulamos el bridge mismo a nivel profesional. He escrito BRIDGE_V3", "deadline": "2026-05-09T00:32:04.049717"}
 {"timestamp": "2026-05-08T00:33:42.632928", "event": "auto_maintenance_startup", "archived": 19, "expired": 0}
+{"timestamp": "2026-05-08T00:46:08.408102", "event": "task_completed", "task_id": "task_1778193124049", "by": "antigravity"}
+{"timestamp": "2026-05-08T00:49:13.567200", "event": "task_completed", "task_id": "task_1778100065354", "by": "antigravity"}
+{"timestamp": "2026-05-08T00:49:17.523638", "event": "task_completed", "task_id": "task_1778100065361", "by": "antigravity"}
+{"timestamp": "2026-05-08T00:49:18.046447", "event": "task_completed", "task_id": "task_1778148187919", "by": "antigravity"}
+{"timestamp": "2026-05-09T01:57:17.884464", "event": "task_created", "task_id": "task_1778284637840", "to": "antigravity", "priority": "high", "summary": "AUDITORÍA — sesión de SOLO IDENTIFICAR (no se arregla nada en este ciclo). Lee BUGS_AUDIT.md en la raíz del repo. Es el ", "deadline": "2026-05-11T01:57:17.840926"}
+{"timestamp": "2026-05-09T01:59:41.358309", "event": "task_completed", "task_id": "task_1778100065367", "by": "antigravity"}
+{"timestamp": "2026-05-09T02:01:43.205172", "event": "task_completed", "task_id": "task_1778284637840", "by": "antigravity"}
+{"timestamp": "2026-05-09T02:02:44.219343", "event": "responses_polled", "count": 6, "task_ids": ["task_1778100065354", "task_1778100065361", "task_1778100065367", "task_1778148187919", "task_1778193124049", "task_1778284637840"]}
+{"timestamp": "2026-05-09T02:04:28.405992", "event": "task_created", "task_id": "task_1778285068403", "to": "antigravity", "priority": "high", "summary": "SESIÓN DE FIX — luz verde del usuario. Tienes 3 trabajos asignados. Commit cada uno por separado.\n\n== A.1 — DECOR EN EST", "deadline": "2026-05-11T02:04:28.403462"}
+{"timestamp": "2026-05-09T02:06:29.478500", "event": "auto_maintenance_startup", "archived": 5, "expired": 0}
+{"timestamp": "2026-05-09T02:09:47.886574", "event": "task_completed", "task_id": "task_1778285068403", "by": "antigravity"}
+{"timestamp": "2026-05-09T22:06:18.535037", "event": "responses_polled", "count": 1, "task_ids": ["task_1778285068403"]}
+{"timestamp": "2026-05-09T22:11:18.486339", "event": "task_created", "task_id": "task_1778357478480", "to": "antigravity", "priority": "high", "summary": "REVIEW + 2 follow-ups + meta-decision.\n\n== A.1, A.2 — APROBADAS ==\n- decor_pillar/altar/tombstone HD: excelente, mismo n", "deadline": "2026-05-10T22:11:18.480814"}

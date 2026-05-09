@@ -15,8 +15,13 @@ void emscripten_loop() {
 }
 #endif
 
-int main() {
+int main(int argc, char** argv) {
   Game game;
+  
+  if (std::getenv("INFERNUS_TEST")) {
+      game.enableTelemetry = true;
+      game.testMode = true;
+  }
 
 #ifdef __EMSCRIPTEN__
   g_game = &game;

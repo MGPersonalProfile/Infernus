@@ -1,240 +1,319 @@
 """
-INFERNUS -- SFX Generator (Procedural WAV)
-Genera SFX retro-infernales usando sintesis procedural pura.
-16-bit mono WAV, sin dependencias externas.
-Estilo: souls-like dark fantasy, 8-bit con fuerza.
+SFX Generator for INFERNUS — Retro Dark Fantasy Sound Effects
+=============================================================
+Generates 16-bit mono .wav files using numpy synthesis.
+Style: souls-like dark fantasy, retro 8-bit with weight.
+Avoids cute/chiptune toy sounds.
 """
-import wave, struct, math, random, os
 
-OUT = "assets/audio/sfx"
-os.makedirs(OUT, exist_ok=True)
-RATE = 22050  # 22kHz retro
+import numpy as np
+import wave
+import struct
+import os
+import sys
+
+SAMPLE_RATE = 22050  # Lower rate for retro feel
+MAX_AMP = 32767
+
 
 def save_wav(filename, samples):
-    path = os.path.join(OUT, filename)
-    with wave.open(path, 'w') as w:
-        w.setnchannels(1)
-        w.setsampwidth(2)  # 16-bit
-        w.setframerate(RATE)
-        data = b''
-        for s in samples:
-            s = max(-1.0, min(1.0, s))
-            data += struct.pack('<h', int(s * 32767))
-        w.writeframes(data)
-    print(f"  {filename}: {len(samples)/RATE:.2f}s ({os.path.getsize(path)} bytes)")
+    """Save samples as 16-bit mono WAV."""
+    # Normalize to -1..1 range if needed
+    peak = np.max(np.abs(samples))
+    if peak > 0:
+        samples = samples / peak
+    
+    # Convert to 16-bit int
+    data = (samples * MAX_AMP * 0.8).astype(np.int16)
+    
+    with wave.open(filename, 'w') as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)  # 16-bit
+        f.setframerate(SAMPLE_RATE)
+        f.writeframes(data.tobytes())
+    
+    size = os.path.getsize(filename)
+    print(f"  OK: {os.path.basename(filename)} ({len(data)/SAMPLE_RATE*1000:.0f}ms, {size} bytes)")
 
 
-def noise():
-    return random.random() * 2 - 1
+def envelope(length, attack=0.01, decay=0.1, sustain=0.5, release=0.2):
+    """Generate ADSR envelope."""
+    total = int(length * SAMPLE_RATE)
+    env = np.zeros(total)
+    
+    a = int(attack * SAMPLE_RATE)
+    d = int(decay * SAMPLE_RATE)
+    r = int(release * SAMPLE_RATE)
+    s = total - a - d - r
+    if s < 0:
+        s = 0
+        r = max(0, total - a - d)
+    
+    # Attack
+    if a > 0:
+        env[:a] = np.linspace(0, 1, a)
+    # Decay
+    if d > 0:
+        env[a:a+d] = np.linspace(1, sustain, d)
+    # Sustain
+    if s > 0:
+        env[a+d:a+d+s] = sustain
+    # Release
+    if r > 0:
+        env[a+d+s:a+d+s+r] = np.linspace(sustain, 0, r)
+    
+    return env[:total]
 
-def sine(t, freq):
-    return math.sin(2 * math.pi * freq * t)
 
-def square(t, freq):
-    return 1.0 if sine(t, freq) > 0 else -1.0
+def noise(length):
+    """White noise."""
+    return np.random.uniform(-1, 1, int(length * SAMPLE_RATE))
 
-def saw(t, freq):
-    phase = (t * freq) % 1.0
-    return 2.0 * phase - 1.0
 
-def envelope(t, attack, decay, sustain, release, total):
-    if t < attack:
-        return t / attack
-    elif t < attack + decay:
-        return 1.0 - (1.0 - sustain) * (t - attack) / decay
-    elif t < total - release:
-        return sustain
-    else:
-        return sustain * (total - t) / release
+def sine(freq, length):
+    """Sine wave."""
+    t = np.linspace(0, length, int(length * SAMPLE_RATE), endpoint=False)
+    return np.sin(2 * np.pi * freq * t)
+
+
+def square(freq, length):
+    """Square wave (retro feel)."""
+    return np.sign(sine(freq, length))
+
+
+def sawtooth(freq, length):
+    """Sawtooth wave."""
+    t = np.linspace(0, length, int(length * SAMPLE_RATE), endpoint=False)
+    return 2 * (t * freq - np.floor(t * freq + 0.5))
+
+
+def pitch_sweep(f_start, f_end, length):
+    """Frequency sweep (sine)."""
+    t = np.linspace(0, length, int(length * SAMPLE_RATE), endpoint=False)
+    freqs = np.linspace(f_start, f_end, len(t))
+    phase = np.cumsum(freqs / SAMPLE_RATE) * 2 * np.pi
+    return np.sin(phase)
+
+
+def lowpass(signal, cutoff_freq):
+    """Simple one-pole lowpass filter."""
+    rc = 1.0 / (2 * np.pi * cutoff_freq)
+    dt = 1.0 / SAMPLE_RATE
+    alpha = dt / (rc + dt)
+    out = np.zeros_like(signal)
+    out[0] = signal[0]
+    for i in range(1, len(signal)):
+        out[i] = out[i-1] + alpha * (signal[i] - out[i-1])
+    return out
+
+
+def highpass(signal, cutoff_freq):
+    """Simple highpass: original - lowpass."""
+    return signal - lowpass(signal, cutoff_freq)
 
 
 # ============================================================
-#  1. footstep.wav — breve pisada sobre piedra, ~80ms
+# SFX GENERATORS
 # ============================================================
+
 def gen_footstep():
+    """Footstep — brief, leather on stone. ~80ms, low volume."""
     dur = 0.08
-    samples = []
-    for i in range(int(RATE * dur)):
-        t = i / RATE
-        env = max(0, 1.0 - t / dur)
-        s = noise() * 0.3 * env
-        s += sine(t, 120) * 0.2 * env * env
-        samples.append(s * 0.5)
-    save_wav("footstep.wav", samples)
+    n = noise(dur)
+    env = envelope(dur, attack=0.002, decay=0.03, sustain=0.2, release=0.03)
+    filtered = lowpass(n, 800)
+    return filtered * env * 0.4
 
 
-# ============================================================
-#  4. hit_fire.wav — sizzle/crackle, ~200ms
-# ============================================================
-def gen_hit_fire():
-    dur = 0.2
-    samples = []
-    for i in range(int(RATE * dur)):
-        t = i / RATE
-        env = max(0, 1.0 - t / dur) ** 0.5
-        crackle = noise() * 0.5 * (1 if random.random() > 0.7 else 0.1)
-        hiss = sine(t, 2000 + noise() * 500) * 0.3
-        s = (crackle + hiss) * env
-        samples.append(s * 0.6)
-    save_wav("hit_fire.wav", samples)
-
-
-# ============================================================
-#  5. hit_ice.wav — crystalline shatter, ~180ms
-# ============================================================
-def gen_hit_ice():
-    dur = 0.18
-    samples = []
-    for i in range(int(RATE * dur)):
-        t = i / RATE
-        env = max(0, 1.0 - t / dur) ** 0.7
-        crystal = sine(t, 3200) * 0.3 + sine(t, 4800) * 0.15
-        shatter = noise() * 0.4 * max(0, 1 - t / 0.05)
-        ring = sine(t, 1600) * 0.2 * max(0, 1 - t / dur)
-        s = (crystal + shatter + ring) * env
-        samples.append(s * 0.6)
-    save_wav("hit_ice.wav", samples)
-
-
-# ============================================================
-#  6. hit_lightning.wav — zap/snap, ~150ms
-# ============================================================
-def gen_hit_lightning():
+def gen_attack_light():
+    """Light attack — quick sword/dagger swish. ~150ms."""
     dur = 0.15
-    samples = []
-    for i in range(int(RATE * dur)):
-        t = i / RATE
-        env = max(0, 1.0 - t / dur) ** 2
-        zap = square(t, 800 + 400 * sine(t, 30)) * 0.4
-        snap = noise() * 0.5 * max(0, 1 - t / 0.03)
-        buzz = sine(t, 120) * 0.15 * env
-        s = (zap + snap + buzz) * env
-        samples.append(s * 0.5)
-    save_wav("hit_lightning.wav", samples)
+    n = noise(dur)
+    sweep = pitch_sweep(2000, 800, dur)
+    env = envelope(dur, attack=0.005, decay=0.05, sustain=0.3, release=0.05)
+    filtered = highpass(n, 1500)
+    return (filtered * 0.6 + sweep * 0.3) * env
 
 
-# ============================================================
-#  7. hit_toxic.wav — organic gurgle/hiss, ~250ms
-# ============================================================
+def gen_attack_heavy():
+    """Heavy attack — axe swing with body. ~250ms."""
+    dur = 0.25
+    n = noise(dur)
+    sweep = pitch_sweep(600, 150, dur)
+    env = envelope(dur, attack=0.01, decay=0.1, sustain=0.4, release=0.1)
+    filtered = lowpass(n, 1200)
+    return (filtered * 0.5 + sweep * 0.5) * env
+
+
+def gen_hit_fire():
+    """Fire hit — sizzle/crackle. ~200ms, high frequency."""
+    dur = 0.2
+    n = noise(dur)
+    crackle = np.random.choice([-1, 0, 0, 0, 1], int(dur * SAMPLE_RATE)).astype(float)
+    env = envelope(dur, attack=0.003, decay=0.05, sustain=0.5, release=0.1)
+    filtered = highpass(n, 2000)
+    return (filtered * 0.4 + crackle * 0.6) * env
+
+
+def gen_hit_ice():
+    """Ice hit — shatter/crystalline. ~180ms."""
+    dur = 0.18
+    n = noise(dur)
+    crystal = sine(3500, dur) * 0.3 + sine(5200, dur) * 0.2 + sine(7800, dur) * 0.1
+    env = envelope(dur, attack=0.001, decay=0.04, sustain=0.3, release=0.1)
+    filtered = highpass(n, 3000)
+    return (filtered * 0.4 + crystal * 0.6) * env
+
+
+def gen_hit_lightning():
+    """Lightning hit — zap/snap. ~150ms with high-pass."""
+    dur = 0.15
+    n = noise(dur)
+    zap = square(200, dur) * sine(4000, dur)
+    env = envelope(dur, attack=0.001, decay=0.02, sustain=0.4, release=0.08)
+    filtered = highpass(n, 2500)
+    return (filtered * 0.3 + zap * 0.7) * env
+
+
 def gen_hit_toxic():
+    """Toxic hit — gurgle/hiss organic. ~250ms."""
     dur = 0.25
-    samples = []
-    for i in range(int(RATE * dur)):
-        t = i / RATE
-        env = max(0, 1.0 - t / dur) ** 0.6
-        gurgle = sine(t, 200 + 100 * sine(t, 8)) * 0.3
-        hiss = noise() * 0.2 * max(0, (t - 0.05) / dur)
-        bubble = sine(t, 400 + 200 * sine(t, 5)) * 0.2 * (0.5 + 0.5 * sine(t, 12))
-        s = (gurgle + hiss + bubble) * env
-        samples.append(s * 0.6)
-    save_wav("hit_toxic.wav", samples)
+    # Bubbling: modulated noise
+    n = noise(dur)
+    modulator = sine(8, dur) * 0.5 + 0.5  # Slow modulation for gurgle
+    bubble = lowpass(n, 600) * modulator
+    hiss = highpass(n, 3000) * 0.3
+    env = envelope(dur, attack=0.01, decay=0.08, sustain=0.5, release=0.1)
+    return (bubble * 0.7 + hiss * 0.3) * env
 
 
-# ============================================================
-#  8. cast_projectile.wav — whoosh with tail, ~300ms
-# ============================================================
 def gen_cast_projectile():
+    """Projectile cast — whoosh with tail (Lanza de Flegetonte). ~300ms."""
     dur = 0.3
-    samples = []
-    for i in range(int(RATE * dur)):
-        t = i / RATE
-        freq = 400 + 800 * (t / dur)  # rising
-        env = envelope(t, 0.02, 0.05, 0.6, 0.15, dur)
-        whoosh = noise() * 0.3 * env
-        tone = sine(t, freq) * 0.4 * env
-        s = whoosh + tone
-        samples.append(s * 0.6)
-    save_wav("cast_projectile.wav", samples)
+    n = noise(dur)
+    sweep = pitch_sweep(400, 2000, dur)
+    env = envelope(dur, attack=0.01, decay=0.05, sustain=0.5, release=0.15)
+    # Whoosh = filtered noise + frequency sweep
+    whoosh = lowpass(n, 1500)
+    return (whoosh * 0.4 + sweep * 0.5) * env
 
 
-# ============================================================
-#  9. cast_shield.wav — chime/glass tone, ~400ms
-# ============================================================
 def gen_cast_shield():
+    """Shield cast — chime/glass tone (Escudo de Hielo). ~400ms."""
     dur = 0.4
-    samples = []
-    for i in range(int(RATE * dur)):
-        t = i / RATE
-        env = max(0, 1.0 - t / dur) ** 0.3
-        chime = sine(t, 880) * 0.3 + sine(t, 1320) * 0.2 + sine(t, 1760) * 0.1
-        glass = sine(t, 2640) * 0.1 * max(0, 1 - t / 0.15)
-        shimmer = sine(t, 3520 + 200 * sine(t, 6)) * 0.08 * env
-        s = (chime + glass + shimmer) * env
-        samples.append(s * 0.5)
-    save_wav("cast_shield.wav", samples)
+    # Bell-like harmonics
+    chime = sine(1200, dur) * 0.4 + sine(2400, dur) * 0.3 + sine(3600, dur) * 0.15 + sine(4800, dur) * 0.08
+    # Glass shimmer
+    n = noise(dur)
+    shimmer = highpass(n, 4000) * 0.1
+    env = envelope(dur, attack=0.005, decay=0.1, sustain=0.4, release=0.2)
+    return (chime + shimmer) * env
 
 
-# ============================================================
-#  10. cast_teleport.wav — vacuum/swap, ~250ms
-# ============================================================
 def gen_cast_teleport():
+    """Teleport cast — vacuum/swap (Paso Sombrío). ~250ms."""
     dur = 0.25
-    samples = []
-    for i in range(int(RATE * dur)):
-        t = i / RATE
-        # Reverse sweep (high to low)
-        freq = 2000 - 1800 * (t / dur)
-        env = 0.5 + 0.5 * math.cos(math.pi * t / dur)
-        sweep = sine(t, freq) * 0.4 * env
-        vacuum = noise() * 0.2 * max(0, 1 - t / 0.1)
-        warp = sine(t, 100 + 50 * sine(t, 20)) * 0.3 * (t / dur)
-        s = sweep + vacuum + warp
-        samples.append(s * 0.5)
-    save_wav("cast_teleport.wav", samples)
+    # Reverse sweep (vacuum in)
+    sweep_in = pitch_sweep(2000, 100, dur * 0.5)
+    # Pop out
+    sweep_out = pitch_sweep(100, 1500, dur * 0.5)
+    combined = np.concatenate([sweep_in, sweep_out])
+    n = noise(dur)
+    filtered = lowpass(n, 800)
+    env = envelope(dur, attack=0.01, decay=0.05, sustain=0.6, release=0.08)
+    # Trim to same length
+    min_len = min(len(combined), len(filtered), len(env))
+    return (combined[:min_len] * 0.6 + filtered[:min_len] * 0.3) * env[:min_len]
 
 
-# ============================================================
-#  11. cast_shout.wav — bass boom + roar, ~400ms
-# ============================================================
 def gen_cast_shout():
+    """War shout — bass boom + roar (Grito de Guerra). ~400ms."""
     dur = 0.4
-    samples = []
-    for i in range(int(RATE * dur)):
-        t = i / RATE
-        env = envelope(t, 0.01, 0.05, 0.7, 0.2, dur)
-        boom = sine(t, 60) * 0.5 * max(0, 1 - t / 0.1)
-        roar = saw(t, 120 + 30 * sine(t, 4)) * 0.3 * env
-        grit = noise() * 0.15 * env
-        s = (boom + roar + grit) * env
-        samples.append(s * 0.7)
-    save_wav("cast_shout.wav", samples)
+    # Deep boom
+    boom = sine(60, dur) * 0.5 + sine(120, dur) * 0.3
+    # Roar = distorted mid-frequency noise
+    n = noise(dur)
+    roar = lowpass(n, 800)
+    roar = np.clip(roar * 3, -1, 1)  # Soft distortion for grit
+    env = envelope(dur, attack=0.01, decay=0.15, sustain=0.5, release=0.15)
+    return (boom * 0.5 + roar * 0.5) * env
 
 
-# ============================================================
-#  12. cast_drain.wav — wet suction, ~300ms
-# ============================================================
 def gen_cast_drain():
+    """Soul drain — wet suction (Drenar Alma). ~300ms."""
     dur = 0.3
-    samples = []
-    for i in range(int(RATE * dur)):
-        t = i / RATE
-        env = max(0, 1.0 - t / dur) ** 0.5
-        # Suction: descending sweep
-        freq = 600 - 400 * (t / dur)
-        suction = sine(t, freq) * 0.3
-        wet = noise() * 0.15 * (0.5 + 0.5 * sine(t, 10))
-        pulse = sine(t, 80 + 40 * sine(t, 3)) * 0.25 * env
-        s = (suction + wet + pulse) * env
-        samples.append(s * 0.6)
-    save_wav("cast_drain.wav", samples)
+    # Suction = reverse envelope noise with low freq modulation
+    n = noise(dur)
+    modulator = sine(5, dur) * 0.3 + 0.7  # Pulsing
+    suction = lowpass(n, 500) * modulator
+    # Eerie tone
+    tone = sine(300, dur) * 0.2 + sine(450, dur) * 0.15
+    env = envelope(dur, attack=0.15, decay=0.05, sustain=0.6, release=0.08)
+    return (suction * 0.6 + tone * 0.4) * env
 
+
+# ============================================================
+# MAIN
+# ============================================================
 
 def main():
-    random.seed(666)
-    print("INFERNUS -- SFX Generator")
-    print("=" * 50)
-    gen_footstep()
-    gen_hit_fire()
-    gen_hit_ice()
-    gen_hit_lightning()
-    gen_hit_toxic()
-    gen_cast_projectile()
-    gen_cast_shield()
-    gen_cast_teleport()
-    gen_cast_shout()
-    gen_cast_drain()
-    print("=" * 50)
-    print("  10 SFX generados (attack_light/heavy ya existian)")
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sfx_dir = os.path.join(project_root, "assets", "audio", "sfx")
+    os.makedirs(sfx_dir, exist_ok=True)
+    
+    # Check what already exists
+    existing = set(os.listdir(sfx_dir))
+    
+    print("=== SFX Generator for INFERNUS ===\n")
+    print(f"Output: {sfx_dir}")
+    print(f"Existing files: {len(existing)}\n")
+    
+    # All SFX to generate
+    sfx_list = [
+        # Animation event SFX
+        ("footstep.wav", gen_footstep, "Animation event: footstep"),
+        # Note: attack_light and attack_heavy already exist, but the task says
+        # they might need improvement. We'll generate new ones and compare.
+        
+        # Damage type variants
+        ("hit_fire.wav", gen_hit_fire, "Damage: fire sizzle"),
+        ("hit_ice.wav", gen_hit_ice, "Damage: ice shatter"),
+        ("hit_lightning.wav", gen_hit_lightning, "Damage: lightning zap"),
+        ("hit_toxic.wav", gen_hit_toxic, "Damage: toxic gurgle"),
+        
+        # Active ability cast SFX
+        ("cast_projectile.wav", gen_cast_projectile, "Cast: Lanza de Flegetonte"),
+        ("cast_shield.wav", gen_cast_shield, "Cast: Escudo de Hielo"),
+        ("cast_teleport.wav", gen_cast_teleport, "Cast: Paso Sombrio"),
+        ("cast_shout.wav", gen_cast_shout, "Cast: Grito de Guerra"),
+        ("cast_drain.wav", gen_cast_drain, "Cast: Drenar Alma"),
+    ]
+    
+    generated = 0
+    skipped = 0
+    
+    for filename, generator, desc in sfx_list:
+        filepath = os.path.join(sfx_dir, filename)
+        if filename in existing:
+            print(f"  SKIP (exists): {filename} — {desc}")
+            skipped += 1
+            continue
+        
+        try:
+            samples = generator()
+            save_wav(filepath, samples)
+            generated += 1
+        except Exception as e:
+            print(f"  ERROR: {filename} — {e}")
+    
+    # Also generate footstep even if not in the skip list
+    footstep_path = os.path.join(sfx_dir, "footstep.wav")
+    if "footstep.wav" not in existing:
+        # Already handled above
+        pass
+    
+    print(f"\n=== DONE: {generated} generated, {skipped} skipped ===")
+
 
 if __name__ == "__main__":
     main()

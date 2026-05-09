@@ -2,7 +2,7 @@
 
 > ESTE ARCHIVO SE LEE AUTOMATICAMENTE AL TRABAJAR EN .ai-bridge/. NO LO IGNORES.
 
-Lee `docs/CLAUDE_PROTOCOL.md` para el protocolo completo.
+Lee `docs/BRIDGE_PROTOCOL.md` para el protocolo unificado completo.
 Plan v3 en curso: ver `BRIDGE_V3_PLAN.md`.
 
 ## Resumen critico (20 herramientas MCP)
@@ -53,3 +53,8 @@ Plan v3 en curso: ver `BRIDGE_V3_PLAN.md`.
 - Al iniciar sesion: `bridge_dashboard()` + `get_all_pending_responses()`
 - Si el dashboard muestra +5 stale pending, llama `prune_inbox()`
 - Al terminar: `update_context()` (archive es automatico)
+
+## Automated QA Pipeline (Telemetría)
+- Antigravity mantiene tests E2E automatizados en Python (`tools/test_gameplay.py`).
+- El engine C++ genera volcados de estado JSON Lines en `telemetry.jsonl` usando la variable de entorno `INFERNUS_TEST=1` (o flag `--test-mode`).
+- Al refactorizar mecánicas núcleo (stamina, colisiones, movimiento), DEBES pedirle a Antigravity que actualice el script de test o correr el script Python tú mismo para evitar regresiones.
