@@ -216,6 +216,12 @@ void RoomGenerator::instantiate(Registry &registry, const RoomTemplate &room) {
   currentRoom = room;
   auto &res = ResourceManager::getInstance();
 
+  // Cap ambient decor (pillars/altars/tombstones) per room — was 3% per tile,
+  // which on big arenas (28x20) saturated the screen with ~17 instances.
+  // Hard limit of 5 per room produces composed, intentional-looking placement.
+  int ambientPlaced = 0;
+  const int AMBIENT_MAX = 5;
+
   for (int y = 0; y < room.height; y++) {
     for (int x = 0; x < room.width; x++) {
       TileType tile = room.grid[y][x];
@@ -234,8 +240,8 @@ void RoomGenerator::instantiate(Registry &registry, const RoomTemplate &room) {
             "assets/sprites/tiles/floor_var4.png",
             "assets/sprites/tiles/floor_var5.png",
             "assets/sprites/tiles/floor_var6.png"};
-        // Bias toward base floor.png (50%) so the look stays cohesive
-        int variantIdx = (GetRandomValue(0, 99) < 50) ? 0 :
+        // 75% base floor for cohesion, 25% variants for break
+        int variantIdx = (GetRandomValue(0, 99) < 75) ? 0 :
                          GetRandomValue(1, 6);
         Texture2D floorTex = res.getTexture(floorVariants[variantIdx]);
         registry.addComponent<Sprite>(floor, floorTex,
@@ -243,8 +249,8 @@ void RoomGenerator::instantiate(Registry &registry, const RoomTemplate &room) {
         registry.addComponent<RoomGeometry>(floor);
         roomEntities.push_back(floor);
 
-        // Small floor decorations (15% chance)
-        if (GetRandomValue(0, 99) < 15) {
+        // Small floor decorations (8% chance — was 15%, room felt too cluttered)
+        if (GetRandomValue(0, 99) < 8) {
           Entity decor = registry.createEntity();
           registry.addComponent<Transform2D>(decor, wx, wy);
           int decorType = GetRandomValue(0, 4);
@@ -260,11 +266,11 @@ void RoomGenerator::instantiate(Registry &registry, const RoomTemplate &room) {
           registry.addComponent<RoomGeometry>(decor);
           roomEntities.push_back(decor);
         }
-        // Ambient set-dressing (3% chance, only on interior tiles).
-        // Pillars/altars/tombstones are visual only — non-blocking, drawn
-        // in front of floor but behind entities. Uses Antigravity's pixel
-        // art tilesets.
-        else if (GetRandomValue(0, 99) < 3 &&
+        // Ambient set-dressing — capped at AMBIENT_MAX per room (5).
+        // Pillars/tombstones are SOLID (have colliders) so they block movement;
+        // altars are visual-only (potential interactive trigger in future).
+        else if (ambientPlaced < AMBIENT_MAX &&
+                 GetRandomValue(0, 999) < 8 &&
                  x > 1 && x < room.width - 2 &&
                  y > 1 && y < room.height - 2) {
           Entity ambient = registry.createEntity();
@@ -277,8 +283,15 @@ void RoomGenerator::instantiate(Registry &registry, const RoomTemplate &room) {
           Texture2D aTex = res.getTexture(ambientPaths[idx]);
           registry.addComponent<Sprite>(ambient, aTex,
                                         Rectangle{0, 0, 64.0f, 64.0f}, 2);
+          // Pillar (idx 0) and tombstone (idx 2) are solid; altar (idx 1) is
+          // decor-only (visible but pass-through).
+          if (idx == 0 || idx == 2) {
+            registry.addComponent<Collider>(ambient, (float)room.tileSize,
+                                            (float)room.tileSize, false);
+          }
           registry.addComponent<RoomGeometry>(ambient);
           roomEntities.push_back(ambient);
+          ambientPlaced++;
         }
 
       } else if (tile == TileType::WALL) {

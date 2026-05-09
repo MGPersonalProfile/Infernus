@@ -1,6 +1,8 @@
 #include "PartikelEmitters.h"
 #include "partikel_bridge.h"
 #include "raylib.h"
+#include <unordered_map>
+#include <string>
 
 namespace PartikelEmitters {
 
@@ -13,13 +15,40 @@ struct EmitterSlot {
 };
 
 static EmitterSlot g_slots[MAX_EMITTERS];
-static Texture2D g_pixelTex;
+static Texture2D g_pixelTex;                          // 2x2 white fallback
+static std::unordered_map<std::string, Texture2D> g_artTextures;
 static bool g_initialized = false;
 
 static int findFreeSlot() {
     for (int i = 0; i < MAX_EMITTERS; ++i)
         if (!g_slots[i].active) return i;
     return -1;
+}
+
+// Switch the global libpartikel texture before bursting. Particles spawned
+// during this burst will sample from the new texture. Cached so we don't
+// re-load on every spawn.
+//
+// Caveat: libpartikel uses a single global texture binding. If two effects
+// with different textures are active simultaneously, both will draw using
+// whichever was bound last. For combat where bursts are short (~0.6-0.9s),
+// the visual imperfection is tolerable.
+static void useArtTexture(const char *path) {
+    auto it = g_artTextures.find(path);
+    Texture2D tex;
+    if (it == g_artTextures.end()) {
+        tex = LoadTexture(path);
+        if (tex.id == 0) {
+            // Couldn't load — fall back to default and don't cache failure
+            partikel_set_texture(g_pixelTex.id, g_pixelTex.width, g_pixelTex.height);
+            return;
+        }
+        SetTextureFilter(tex, TEXTURE_FILTER_POINT);
+        g_artTextures[path] = tex;
+    } else {
+        tex = it->second;
+    }
+    partikel_set_texture(tex.id, tex.width, tex.height);
 }
 
 static void fireEmitter(PartikelCfg cfg, float duration) {
@@ -55,6 +84,8 @@ void shutdown() {
             g_slots[i].handle = nullptr;
         }
     }
+    for (auto &kv : g_artTextures) UnloadTexture(kv.second);
+    g_artTextures.clear();
     UnloadTexture(g_pixelTex);
     g_initialized = false;
 }
@@ -82,6 +113,7 @@ void draw() {
 
 void spawnBlood(float x, float y, int count) {
     if (!g_initialized) return;
+    useArtTexture("assets/sprites/particles/blood_drop.png");
     PartikelCfg cfg = {};
     cfg.dirX = 0; cfg.dirY = -1;
     cfg.velMin = 80; cfg.velMax = 200;
@@ -100,6 +132,7 @@ void spawnBlood(float x, float y, int count) {
 
 void spawnDashDust(float x, float y, float dirX) {
     if (!g_initialized) return;
+    useArtTexture("assets/sprites/particles/dust_cloud.png");
     PartikelCfg cfg = {};
     cfg.dirX = -dirX; cfg.dirY = -0.3f;
     cfg.velMin = 40; cfg.velMax = 100;
@@ -118,6 +151,7 @@ void spawnDashDust(float x, float y, float dirX) {
 
 void spawnFireTrail(float x, float y) {
     if (!g_initialized) return;
+    useArtTexture("assets/sprites/particles/fire_burst.png");
     PartikelCfg cfg = {};
     cfg.dirX = 0; cfg.dirY = -1;
     cfg.velMin = 20; cfg.velMax = 60;
@@ -136,6 +170,7 @@ void spawnFireTrail(float x, float y) {
 
 void spawnSlamShockwave(float x, float y) {
     if (!g_initialized) return;
+    useArtTexture("assets/sprites/particles/shockwave.png");
     PartikelCfg cfg = {};
     cfg.dirX = 1; cfg.dirY = 0;
     cfg.velMin = 150; cfg.velMax = 350;

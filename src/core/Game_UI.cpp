@@ -49,27 +49,34 @@ void Game::drawHUD() {
     auto &health = registry.getComponent<Health>(playerEntity);
     auto &stam = registry.getComponent<Stamina>(playerEntity);
 
-    // HP Bar (dark bg, red fill with bright top edge, gold border)
+    // HP Bar — bigger, more present (was 300x22 → 360x28). Dark border for
+    // contrast vs the warm fill (was gold border which blended with stamina).
     float hpRatio = std::max(0.0f, (float)health.currentHP / health.maxHP);
-    DrawRectangle(20, 20, 300, 22, Color{40, 5, 5, 220});
-    int hpFill = (int)(300 * hpRatio);
-    DrawRectangleGradientV(20, 20, hpFill, 11, Color{220, 60, 40, 255},
-                           Color{160, 25, 20, 255});
-    DrawRectangleGradientV(20, 31, hpFill, 11, Color{140, 20, 15, 255},
+    const int HP_W = 360, HP_H = 28;
+    DrawRectangle(20, 20, HP_W, HP_H, Color{40, 5, 5, 220});
+    int hpFill = (int)(HP_W * hpRatio);
+    DrawRectangleGradientV(20, 20, hpFill, HP_H / 2, Color{230, 70, 50, 255},
+                           Color{170, 30, 25, 255});
+    DrawRectangleGradientV(20, 20 + HP_H / 2, hpFill, HP_H / 2, Color{150, 25, 20, 255},
                            Color{100, 10, 10, 255});
-    DrawRectangleLinesEx({20, 20, 300, 22}, 1.0f, Color{180, 150, 80, 200});
-    TextUtils::drawOutlined(TextFormat("HP %d/%d", health.currentHP, health.maxHP), 25, 23, 12,
+    DrawRectangleLinesEx({20, 20, (float)HP_W, (float)HP_H}, 2.0f,
+                         Color{60, 20, 15, 255}); // dark crimson border
+    TextUtils::drawOutlined(TextFormat("HP %d/%d", health.currentHP, health.maxHP), 28, 25, 14,
              WHITE, 2);
 
-    // Stamina Bar (dark bg, amber fill, gold border) — Circulo VII palette
+    // Stamina Bar — proportional to HP (240x16). Border darkened to contrast
+    // against the amber fill (was {150,130,70} which blended).
     float stRatio = stam.currentStamina / stam.maxStamina;
-    DrawRectangle(20, 48, 200, 14, Color{25, 18, 8, 220});
-    int stFill = (int)(200 * stRatio);
-    DrawRectangleGradientV(20, 48, stFill, 7, Color{230, 190, 90, 255},
+    const int ST_W = 240, ST_H = 16;
+    int ST_Y = 20 + HP_H + 6;
+    DrawRectangle(20, ST_Y, ST_W, ST_H, Color{25, 18, 8, 220});
+    int stFill = (int)(ST_W * stRatio);
+    DrawRectangleGradientV(20, ST_Y, stFill, ST_H / 2, Color{230, 190, 90, 255},
                            Color{180, 140, 60, 255});
-    DrawRectangleGradientV(20, 55, stFill, 7, Color{160, 120, 50, 255},
+    DrawRectangleGradientV(20, ST_Y + ST_H / 2, stFill, ST_H / 2, Color{160, 120, 50, 255},
                            Color{110, 80, 30, 255});
-    DrawRectangleLinesEx({20, 48, 200, 14}, 1.0f, Color{150, 130, 70, 180});
+    DrawRectangleLinesEx({20, (float)ST_Y, (float)ST_W, (float)ST_H}, 2.0f,
+                         Color{50, 30, 10, 255}); // dark amber border
   }
 
   // Combo counter (show when combo is active)
@@ -93,11 +100,8 @@ void Game::drawHUD() {
     }
   }
 
-  // Special cooldown — only when on cooldown so the screen stays clean.
-  if (specialCooldownTimer > 0.0f) {
-    TextUtils::drawOutlined(TextFormat("L: %.1fs", specialCooldownTimer), 20, 102, 10,
-             Color{220, 100, 100, 255}, 1);
-  }
+  // Special cooldown indicator (L key) retired in v3 fix — class signature
+  // ability is now in Q/E slots which already show their own cooldown overlay.
 
   // === Active abilities HUD (Q / E slots, bottom-right) ===
   if (registry.hasComponent<ActiveAbilities>(playerEntity)) {
@@ -115,8 +119,20 @@ void Game::drawHUD() {
 
       // Frame background
       DrawRectangle(x, y, slotSize, slotSize, Color{20, 12, 8, 220});
+      // Border: dimmed when on cooldown / unequipped, gold-pulsing when ready
+      Color borderCol;
+      if (!has) {
+        borderCol = Color{60, 50, 40, 255};
+      } else if (cooldown > 0.0f) {
+        borderCol = Color{120, 90, 50, 220};
+      } else {
+        // Ready: pulse gold ↔ bright gold using sine wave
+        float pulse = 0.5f + 0.5f * sinf((float)GetTime() * 4.0f);
+        unsigned char g = (unsigned char)(160 + 70 * pulse);
+        borderCol = Color{230, g, 80, 255};
+      }
       DrawRectangleLinesEx({(float)x, (float)y, (float)slotSize, (float)slotSize},
-                           2.0f, has ? Color{180, 140, 70, 255} : Color{60, 50, 40, 255});
+                           2.0f, borderCol);
 
       if (!has) {
         // Empty slot — show key label only
@@ -125,16 +141,24 @@ void Game::drawHUD() {
         return;
       }
 
-      // Icon
+      // Icon (preferred) — fallback to truncated name + key letter big
       Texture2D icon = ResourceManager::getInstance().getTexture(a.iconPath);
-      if (icon.id > 0) {
+      bool hasIcon = (icon.id > 0);
+      if (hasIcon) {
         Rectangle src = {0, 0, (float)icon.width, (float)icon.height};
         Rectangle dst = {(float)(x + 4), (float)(y + 4),
                          (float)(slotSize - 8), (float)(slotSize - 8)};
         DrawTexturePro(icon, src, dst, {0, 0}, 0.0f, WHITE);
       } else {
-        // Fallback: name
-        TextUtils::draw(a.name.c_str(), x + 4, y + slotSize / 2 - 4, 8,
+        // Fallback: big key letter centered + truncated name below.
+        // Truncate keeps slot width sacred; "Lanza de Flegetonte" → "Lanza..."
+        TextUtils::drawOutlined(keyLabel, x + slotSize / 2 - 6,
+                                y + slotSize / 2 - 14, 22,
+                                Color{220, 180, 100, 255}, 1);
+        std::string truncName = TextUtils::truncate(a.name, 8, slotSize - 8);
+        int nw = TextUtils::measure(truncName.c_str(), 7);
+        TextUtils::draw(truncName.c_str(), x + (slotSize - nw) / 2,
+                        y + slotSize - 12, 7,
                         Color{200, 180, 140, 255});
       }
 

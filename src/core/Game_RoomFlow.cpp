@@ -365,7 +365,17 @@ void Game::startGame(int characterIndex) {
   animState.addClip(AnimStateType::ATTACK, spriteBase + "_attack.png", 6, 0.07f, fw, fh, false);
 
   registry.addComponent<Velocity>(playerEntity, 0.0f, 0.0f);
-  registry.addComponent<Collider>(playerEntity, fw * 0.75f, fh * 0.9f, false);
+  // Collider centered horizontally + biased toward feet vertically — hitbox
+  // matches the body silhouette instead of the full sprite frame (which had
+  // empty padding around it). offsetX/Y position the collider relative to the
+  // top-left of the entity Transform.
+  {
+    float colW = fw * 0.6f;   // narrower than visual sprite
+    float colH = fh * 0.7f;   // shorter — feet to upper-torso
+    auto &col = registry.addComponent<Collider>(playerEntity, colW, colH, false);
+    col.offsetX = (fw - colW) * 0.5f;        // center horizontally
+    col.offsetY = fh - colH;                 // anchor to feet
+  }
   registry.addComponent<Health>(playerEntity, hp);
   registry.addComponent<Stamina>(playerEntity, stam, stamRegen, 1.0f);
   registry.addComponent<Combat>(playerEntity, damage, 150.0f);

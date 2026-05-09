@@ -35,7 +35,9 @@ public:
     keyBinds[InputAction::ATTACK_HEAVY] = KEY_K;
     keyBinds[InputAction::DASH] = KEY_SPACE;
     keyBinds[InputAction::INTERACT] = KEY_R;          // moved from E (E now ability slot 2)
-    keyBinds[InputAction::SPECIAL_ATTACK] = KEY_L;
+    // SPECIAL_ATTACK retired: was redundant with Q/E active ability system.
+    // The class "ultimate" still lives at executeSpecialAttack() but is no
+    // longer player-triggered. Keeping enum for backward-compat / future re-add.
     keyBinds[InputAction::PARRY] = KEY_F;
     keyBinds[InputAction::ABILITY_Q] = KEY_Q;         // active ability slot 1
     keyBinds[InputAction::ABILITY_E] = KEY_E;         // active ability slot 2
@@ -56,8 +58,7 @@ public:
     padBinds[InputAction::DASH] = GAMEPAD_BUTTON_RIGHT_FACE_DOWN; // A on Xbox
     padBinds[InputAction::INTERACT] =
         GAMEPAD_BUTTON_RIGHT_FACE_RIGHT; // B on Xbox
-    padBinds[InputAction::SPECIAL_ATTACK] =
-        GAMEPAD_BUTTON_LEFT_TRIGGER_1; // LB on Xbox
+    // SPECIAL_ATTACK gamepad bind retired (was LB) — see keyBinds note.
     padBinds[InputAction::PARRY] =
         GAMEPAD_BUTTON_RIGHT_TRIGGER_1; // RB on Xbox
     // Active abilities on triggers (Xbox-style)

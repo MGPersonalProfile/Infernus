@@ -239,14 +239,10 @@ void Game::handlePlayerInput(float deltaTime) {
     }
   }
 
-  // Special attack (class ability)
-  if (inputManager.isActionPressed(InputAction::SPECIAL_ATTACK) &&
-      specialCooldownTimer <= 0.0f &&
-      stamina.hasEnough(30.0f)) {
-    stamina.currentStamina -= 30.0f;
-    stamina.cooldownTimer = stamina.regenDelay;
-    executeSpecialAttack();
-  }
+  // Special attack (L) retired in v3 fix session — class "ultimate" is now
+  // handled via the active ability system (Q/E), where each class is auto-
+  // equipped with its signature ability via active_abilities.json defaultByClass.
+  // executeSpecialAttack() retained but unreachable; future-proof for re-add.
   // --- Procedural Animation Synchronization ---
   if (registry.hasComponent<Animation>(playerEntity) && registry.hasComponent<Combat>(playerEntity)) {
       auto& anim = registry.getComponent<Animation>(playerEntity);
@@ -957,6 +953,27 @@ void Game::update(float deltaTime) {
   animationSystem.update(registry, deltaTime);
   cameraSystem.update(registry, playerEntity, deltaTime);
   updateAtmosphericParticles(deltaTime);
+
+  if (enableTelemetry && registry.isAlive(playerEntity) && registry.hasComponent<Health>(playerEntity) && registry.hasComponent<Transform2D>(playerEntity)) {
+    static float telemetryTimer = 0.0f;
+    telemetryTimer += deltaTime;
+    if (telemetryTimer >= 0.2f) { // emit every 200ms
+      telemetryTimer = 0.0f;
+      auto& h = registry.getComponent<Health>(playerEntity);
+      auto& t = registry.getComponent<Transform2D>(playerEntity);
+      int stam = 0;
+      if (registry.hasComponent<Stamina>(playerEntity)) {
+          stam = (int)registry.getComponent<Stamina>(playerEntity).currentStamina;
+      }
+      std::string stateStr = "PLAYING";
+      if (state == GameState::GAME_OVER) stateStr = "GAME_OVER";
+      else if (state == GameState::VICTORY) stateStr = "VICTORY";
+      
+      printf("TELEMETRY: {\"hp\":%d, \"stamina\":%d, \"x\":%.1f, \"y\":%.1f, \"enemies\":%d, \"state\":\"%s\"}\n", 
+             h.currentHP, stam, t.x, t.y, enemiesAlive, stateStr.c_str());
+      fflush(stdout);
+    }
+  }
 
   registry.flushDestroyed();
 }

@@ -49,6 +49,8 @@ public:
   void shutdown();
   void run();
 
+  bool enableTelemetry = false;
+
 private:
   int screenWidth;
   int screenHeight;
