@@ -99,21 +99,29 @@ Comando build: `cmake -S . -B build -G "MinGW Makefiles" && mingw32-make -C buil
    cableado en CombatSystem (`hit_dealt`) y RoomFlow (`room_entered`).
    Snapshots periódicos siguen a 5Hz.
 
-⚠️ **Sandbox test bloqueado** — el bash MSYS2 de Claude Code falla con exit 127
-   al ejecutar `build/INFERNUS.exe --headless`. El binary es PE32+ Windows;
-   parece que MSYS no propaga argv/env al sub-proceso correctamente. NO es
-   un bug del código headless — el .exe sin args sí arranca (la ventana
-   raylib se ve pero kill bg fuerza salida).
+✅ **Sandbox test resuelto** (2026-05-10): Claude usa el tool `PowerShell` con
+   `Start-Process -Wait -NoNewWindow` y SÍ ejecuta el .exe limpiamente desde su
+   sandbox. El bash MSYS2 falla con exit 127 (no soporta exec PE32+ con argv)
+   pero PowerShell sí.
 
-   **Próximo paso:** que Juan Miguel o Antigravity ejecuten desde un cmd.exe
-   nativo / PowerShell / bash WSL real:
+   **Receta operativa para Claude (cada sesión que necesite verificar runtime):**
+   ```powershell
+   Set-Location 'C:\Users\Juan Miguel\Roguesouls-like'
+   Remove-Item telemetry.jsonl -ErrorAction SilentlyContinue
+   Start-Process -FilePath ".\build\INFERNUS.exe" `
+     -ArgumentList "--headless","--duration","5" `
+     -WorkingDirectory (Get-Location).Path -Wait -NoNewWindow
+   Get-Content telemetry.jsonl | Select-Object -First 30
    ```
-   cd Roguesouls-like
-   build\INFERNUS.exe --headless --duration 5
-   type telemetry.jsonl
-   ```
-   Si genera líneas válidas, el feature funciona. Me suben el archivo y yo
-   lo analizo.
+   Después leo `telemetry.jsonl` con Read tool y analizo.
+
+   Headless corre ~2x real-time (sin SetTargetFPS throttle). 3s simulados
+   = ~1.7s wall-clock. Bueno para iterar rápido sobre fixes.
+
+   **Limitación pendiente:** sin player input, x/y constantes, no hay
+   combat real. Próximo step para telemetría más útil: "scripted player"
+   que sigue patrones (mover, atacar, usar Q) — para smoke tests reales
+   con damage dealt, room transitions, ability usage.
 
 ### Pending de fix sessions futuras (BUGS_AUDIT.md P2-P3)
 - A.5 swap torch HD (necesita Antigravity entregar 4-frame spritesheet)
