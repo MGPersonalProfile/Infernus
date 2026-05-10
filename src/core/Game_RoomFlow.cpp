@@ -1,6 +1,7 @@
 #include "Game.h"
 #include "../debug/DebugPanel.h"
 #include "../debug/Profiler.h"
+#include "../debug/Telemetry.h"
 #include "../scripting/LuaEngine.h"
 #include "../systems/PartikelEmitters.h"
 #include "../world/LDtkRoomLoader.h"
@@ -71,6 +72,16 @@ void Game::spawnRoom() {
   collisionSystem.invalidateWallCache();
   // Tell AI system about the new room so enemies can pathfind
   aiSystem.setRoom(&roomGenerator.getCurrentRoom());
+
+  // Telemetry: discrete event so QA scripts can correlate state changes
+  if (Telemetry::isActive()) {
+    char buf[160];
+    snprintf(buf, sizeof(buf),
+             "{\"index\":%d,\"boss\":%s,\"width\":%d,\"height\":%d}",
+             currentRoom, isBossRoom ? "true" : "false",
+             room.width, room.height);
+    Telemetry::event("room_entered", buf);
+  }
 
   // Move player to spawn point
   if (registry.hasComponent<Transform2D>(playerEntity)) {

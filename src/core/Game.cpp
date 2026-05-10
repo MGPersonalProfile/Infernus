@@ -46,47 +46,56 @@ Game::Game()
 // Init
 // =============================================================================
 void Game::init() {
-  InitWindow(screenWidth, screenHeight, "INFERNUS");
-  SetExitKey(0); // Disable ESC auto-close — we handle ESC ourselves
-  SetTargetFPS(Constants::TARGET_FPS);
-  DebugPanel::setup();
+  // Headless mode: skip raylib window/audio/GPU init entirely. The game loop
+  // still runs (ECS, systems, AI, physics, telemetry) but nothing renders.
+  // This lets Claude run the game from a sandbox with no display server.
+  ResourceManager::getInstance().setHeadless(headlessMode);
+  inputManager.setHeadless(headlessMode);
+  if (!headlessMode) {
+    InitWindow(screenWidth, screenHeight, "INFERNUS");
+    SetExitKey(0); // Disable ESC auto-close — we handle ESC ourselves
+    SetTargetFPS(Constants::TARGET_FPS);
+    DebugPanel::setup();
+    PartikelEmitters::init();
+    AudioManager::getInstance().init();
+    AudioManager::getInstance().playMusic("menu");
+  }
+
+  // These can run without a window (file IO, scripting, JSON parsing).
   LuaEngine::setup();
-  PartikelEmitters::init();
   inputManager.init();
   cameraSystem.init(screenWidth, screenHeight);
-  AudioManager::getInstance().init();
-  AudioManager::getInstance().playMusic("menu");
   abilitySystem.loadAbilities("assets/data/abilities.json");
   abilitySystem.loadActiveAbilities("assets/data/active_abilities.json");
   synergySystem.loadSynergies("assets/data/synergies.json");
   itemSystem.loadItems("assets/data/items.json");
-  // Wire dispatcher to live subsystems so screen_shake / add_hitstop can fire.
   AnimEventDispatcher::wire(&cameraSystem, &screenEffects);
   AnimEventDispatcher::load("assets/data/animation_events/events.json");
   saveManager.load();
 
-  // Preload art textures so they're ready before the first frame
-  auto &res = ResourceManager::getInstance();
-  res.getTexture("assets/art/title_bg.png");
-  res.getTexture("assets/art/parallax_dungeon.png");
-  res.getTexture("assets/art/ui_panel.png");
-  res.getTexture("assets/art/portrait_warrior.png");
-  res.getTexture("assets/art/portrait_rogue.png");
-  res.getTexture("assets/art/portrait_knight.png");
-  res.getTexture("assets/art/portrait_minotaur.png");
-  res.getTexture("assets/art/portrait_infernal_knight.png");
-  res.getTexture("assets/art/portrait_soul_archer.png");
-  res.getTexture("assets/art/portrait_pit_fiend.png");
+  if (!headlessMode) {
+    // Preload art textures (needs GL context — skip when headless)
+    auto &res = ResourceManager::getInstance();
+    res.getTexture("assets/art/title_bg.png");
+    res.getTexture("assets/art/parallax_dungeon.png");
+    res.getTexture("assets/art/ui_panel.png");
+    res.getTexture("assets/art/portrait_warrior.png");
+    res.getTexture("assets/art/portrait_rogue.png");
+    res.getTexture("assets/art/portrait_knight.png");
+    res.getTexture("assets/art/portrait_minotaur.png");
+    res.getTexture("assets/art/portrait_infernal_knight.png");
+    res.getTexture("assets/art/portrait_soul_archer.png");
+    res.getTexture("assets/art/portrait_pit_fiend.png");
 
-  // Post-Processing Initializations
-  renderTarget = LoadRenderTexture(screenWidth, screenHeight);
-  // Fixed the blurriness
-  SetTextureFilter(renderTarget.texture, TEXTURE_FILTER_POINT);
-  crtVignetteShader = LoadShader(0, "src/shaders/CRT_Vignette.fs");
-  renderSizeLoc = GetShaderLocation(crtVignetteShader, "renderSize");
-  float sz[2] = { (float)screenWidth, (float)screenHeight };
-  SetShaderValue(crtVignetteShader, renderSizeLoc, sz, SHADER_UNIFORM_VEC2);
-  
+    // Post-processing render target + shader (also requires GL context)
+    renderTarget = LoadRenderTexture(screenWidth, screenHeight);
+    SetTextureFilter(renderTarget.texture, TEXTURE_FILTER_POINT);
+    crtVignetteShader = LoadShader(0, "src/shaders/CRT_Vignette.fs");
+    renderSizeLoc = GetShaderLocation(crtVignetteShader, "renderSize");
+    float sz[2] = { (float)screenWidth, (float)screenHeight };
+    SetShaderValue(crtVignetteShader, renderSizeLoc, sz, SHADER_UNIFORM_VEC2);
+  }
+
   if (testMode) {
       state = GameState::PLAYING;
       startGame(0);
@@ -112,6 +121,8 @@ void Game::transitionTo(GameState target, float duration) {
 // =============================================================================
 void Game::render() {
   INFERNUS_ZONE_N("Game::render");
+  // Headless: nothing to draw, no GL calls allowed (no context).
+  if (headlessMode) return;
   BeginTextureMode(renderTarget);
   ClearBackground(Color{10, 10, 15, 255});
 
@@ -510,23 +521,47 @@ void Game::renderAtmosphericParticles() {
 void Game::shutdown() {
   saveManager.save();
   Telemetry::close();
-  UnloadRenderTexture(renderTarget);
-  UnloadShader(crtVignetteShader);
-  AudioManager::getInstance().shutdown();
-  ResourceManager::getInstance().unloadAll();
-  PartikelEmitters::shutdown();
+  if (!headlessMode) {
+    UnloadRenderTexture(renderTarget);
+    UnloadShader(crtVignetteShader);
+    AudioManager::getInstance().shutdown();
+    PartikelEmitters::shutdown();
+    DebugPanel::shutdown();
+    ResourceManager::getInstance().unloadAll();
+    CloseWindow();
+  }
   LuaEngine::shutdown();
-  DebugPanel::shutdown();
-  CloseWindow();
 }
 
 
 void Game::run() {
   init();
+  if (headlessMode) {
+    // Fixed-step headless loop. No window means no WindowShouldClose; we
+    // rely on autoQuitAfterSeconds to terminate. dt is fixed at 1/60s for
+    // deterministic telemetry runs.
+    const float fixedDt = 1.0f / 60.0f;
+    float elapsed = 0.0f;
+    while (true) {
+      update(fixedDt);
+      // render() is a no-op in headless mode (early-return inside).
+      elapsed += fixedDt;
+      if (autoQuitAfterSeconds > 0.0f && elapsed >= autoQuitAfterSeconds) break;
+      // Safety cap so a runaway loop doesn't burn cycles forever
+      if (elapsed > 600.0f) break;
+    }
+    shutdown();
+    return;
+  }
   while (!WindowShouldClose()) {
     update(GetFrameTime());
     render();
     INFERNUS_FRAME;
+    if (autoQuitAfterSeconds > 0.0f) {
+      static float runElapsed = 0.0f;
+      runElapsed += GetFrameTime();
+      if (runElapsed >= autoQuitAfterSeconds) break;
+    }
   }
   shutdown();
 }

@@ -62,3 +62,5 @@
 {"timestamp": "2026-05-09T02:09:47.886574", "event": "task_completed", "task_id": "task_1778285068403", "by": "antigravity"}
 {"timestamp": "2026-05-09T22:06:18.535037", "event": "responses_polled", "count": 1, "task_ids": ["task_1778285068403"]}
 {"timestamp": "2026-05-09T22:11:18.486339", "event": "task_created", "task_id": "task_1778357478480", "to": "antigravity", "priority": "high", "summary": "REVIEW + 2 follow-ups + meta-decision.\n\n== A.1, A.2 — APROBADAS ==\n- decor_pillar/altar/tombstone HD: excelente, mismo n", "deadline": "2026-05-10T22:11:18.480814"}
+{"timestamp": "2026-05-09T22:16:50.858195", "event": "task_completed", "task_id": "task_1778357478480", "by": "antigravity"}
+{"timestamp": "2026-05-09T22:19:53.243094", "event": "task_created", "task_id": "task_1778357993231", "to": "antigravity", "priority": "low", "summary": "INFO — nuevo archivo de estado del proyecto.\n\nUbicación: `PROJECT_STATUS.md` en la raíz del repo (junto a joint_plan.md,", "deadline": "2026-05-12T22:19:53.232925"}

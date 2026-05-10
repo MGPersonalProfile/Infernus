@@ -61,6 +61,30 @@ inline const char *stateLabel(GameState s) {
   }
 }
 
+// Emit a discrete event line. Use for non-periodic happenings (hit confirmed,
+// ability fired, room entered, boss phase change, player death). Cheap; no
+// throttle. The Python reader can grep `"event":` to filter.
+//
+// Example: Telemetry::event("hit_dealt", "{\"dmg\":25,\"type\":\"fire\"}");
+inline void event(const char *name, const char *jsonPayload = nullptr) {
+  if (!detail::fileHandle()) open();
+  if (!detail::fileHandle()) return;
+  if (jsonPayload && jsonPayload[0]) {
+    fprintf(detail::fileHandle(),
+            "{\"t\":%.2f,\"event\":\"%s\",\"payload\":%s}\n",
+            detail::elapsed(), name, jsonPayload);
+  } else {
+    fprintf(detail::fileHandle(),
+            "{\"t\":%.2f,\"event\":\"%s\"}\n",
+            detail::elapsed(), name);
+  }
+  fflush(detail::fileHandle());
+}
+
+// Returns true if telemetry is currently active (file is open). Lets call
+// sites cheaply skip building event payloads when nothing's listening.
+inline bool isActive() { return detail::fileHandle() != nullptr; }
+
 // Emit a snapshot at most every `interval` seconds (default 200ms = 5 Hz).
 // Cheap enough not to affect frame timing measurably.
 inline void tick(Registry &registry, Entity playerEntity, GameState state,

@@ -68,8 +68,14 @@ public:
         GAMEPAD_BUTTON_RIGHT_TRIGGER_2; // RT on Xbox
   }
 
+  // Headless mode (no raylib window): all input queries return false. Set by
+  // Game::init when headlessMode is on. Without this, IsKeyPressed/IsKeyDown
+  // crash because raylib requires an InitWindow'd context.
+  void setHeadless(bool h) { headless = h; }
+
   // Check if key/button for action is currently held down
   bool isActionDown(InputAction action) const {
+    if (headless) return false;
     bool down = false;
 
     // Check Keyboard
@@ -90,6 +96,7 @@ public:
 
   // Check if key/button for action was just pressed this frame
   bool isActionPressed(InputAction action) const {
+    if (headless) return false;
     bool pressed = false;
 
     // Check Keyboard
@@ -113,6 +120,7 @@ public:
   struct MoveVector { float x = 0.0f; float y = 0.0f; };
   MoveVector getMoveAxis() const {
     MoveVector v;
+    if (headless) return v;
     if (IsGamepadAvailable(0)) {
       float ax = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
       float ay = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
@@ -128,9 +136,10 @@ public:
     return v;
   }
 
-  bool isGamepadActive() const { return IsGamepadAvailable(0); }
+  bool isGamepadActive() const { return !headless && IsGamepadAvailable(0); }
 
 private:
   std::unordered_map<InputAction, int> keyBinds;
   std::unordered_map<InputAction, int> padBinds; // Placholder gamepad mappings
+  bool headless = false; // when true, all input queries return idle
 };

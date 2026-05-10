@@ -1,5 +1,6 @@
 #include "CombatSystem.h"
 #include "../debug/Profiler.h"
+#include "../debug/Telemetry.h"
 #include "../audio/AudioManager.h"
 #include "../components/AIBehavior.h"
 #include "../components/Animation.h"
@@ -283,6 +284,25 @@ void CombatSystem::processHitDetection(Registry &registry,
       UIRenderer::spawnDamageNumber(registry, vTransform.x + 10.0f,
                                     vTransform.y, damage, isCrit,
                                     aCombat.damageType);
+
+      // Telemetry — discrete event for QA scripts (skipped if not enabled)
+      if (Telemetry::isActive()) {
+        const char *kind = "physical";
+        switch (aCombat.damageType) {
+          case DamageType::FIRE:      kind = "fire"; break;
+          case DamageType::ICE:       kind = "ice"; break;
+          case DamageType::LIGHTNING: kind = "lightning"; break;
+          case DamageType::TOXIC:     kind = "toxic"; break;
+          default: break;
+        }
+        bool victimIsPlayer = registry.hasComponent<PlayerStats>(victim);
+        char buf[160];
+        snprintf(buf, sizeof(buf),
+                 "{\"dmg\":%d,\"type\":\"%s\",\"crit\":%s,\"victim\":\"%s\"}",
+                 damage, kind, isCrit ? "true" : "false",
+                 victimIsPlayer ? "player" : "enemy");
+        Telemetry::event("hit_dealt", buf);
+      }
 
       // VFX (Lua-tunable via feel.lua)
       float shakeAmount = isCrit

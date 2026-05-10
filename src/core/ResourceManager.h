@@ -14,10 +14,18 @@ public:
   ResourceManager(const ResourceManager &) = delete;
   void operator=(const ResourceManager &) = delete;
 
+  // Headless mode: skip GL-dependent texture loads. The dummy returned has
+  // id=0 which all rendering code already treats as "missing" (early-out).
+  // Game::init sets this once when started with --headless / INFERNUS_HEADLESS.
+  void setHeadless(bool headless) { headlessMode = headless; }
+
   // Load a texture from a file path (cached)
   Texture2D getTexture(const std::string &path) {
     if (textures.find(path) == textures.end()) {
-      if (path == "assets/sprites/tiles/floor.png") {
+      if (headlessMode) {
+        // Fake entry — id=0, w=0, h=0. RenderSystem checks id and skips.
+        textures[path] = Texture2D{};
+      } else if (path == "assets/sprites/tiles/floor.png") {
         textures[path] = PixelArtGenerator::getFloor();
       } else if (path == "assets/sprites/tiles/decor_bones.png") {
         textures[path] = PixelArtGenerator::getDecor();
@@ -134,4 +142,5 @@ private:
   Font hud = {};
   Font title = {};
   Font big = {};
+  bool headlessMode = false; // when true, getTexture returns dummy stubs
 };

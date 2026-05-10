@@ -51,6 +51,8 @@ public:
 
   bool enableTelemetry = false;
   bool testMode = false;
+  bool headlessMode = false;            // skip InitWindow + render path
+  float autoQuitAfterSeconds = 0.0f;    // 0 = no auto-quit
 
 private:
   int screenWidth;
