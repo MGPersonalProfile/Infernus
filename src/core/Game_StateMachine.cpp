@@ -874,15 +874,16 @@ void Game::update(float deltaTime) {
     return;
 
   case GameState::INFO:
-    if (IsKeyPressed(KEY_ESCAPE) || 
-        inputManager.isActionPressed(InputAction::OPEN_INFO) || 
-        inputManager.isActionPressed(InputAction::OPEN_INVENTORY) || 
+    if (IsKeyPressed(KEY_ESCAPE) ||
+        inputManager.isActionPressed(InputAction::OPEN_INFO) ||
+        inputManager.isActionPressed(InputAction::OPEN_INVENTORY) ||
         inputManager.isActionPressed(InputAction::OPEN_ABILITIES))
       state = GameState::PLAYING;
-    
-    // Allow swapping tabs inside info menu
-    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) infoMenuTab = (infoMenuTab + 1) % 3;
-    if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) infoMenuTab = (infoMenuTab + 2) % 3;
+
+    // Tab swap — routed through InputManager so ScriptedInput can drive
+    // headless QA validation of C.2 TAB cycling.
+    if (inputManager.menuNextPressed()) infoMenuTab = (infoMenuTab + 1) % 3;
+    if (inputManager.menuPrevPressed()) infoMenuTab = (infoMenuTab + 2) % 3;
     return;
 
   case GameState::ITEM_SWAP: {

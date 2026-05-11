@@ -1009,12 +1009,10 @@ void Game::drawInfoMenu() {
       {"J",      "Ataque ligero (combo x3)"},
       {"K",      "Ataque pesado / Finisher"},
       {"F",      "Parry (anula dano)"},
-      {"L",      "Especial de clase"},
       {"SPACE",  "Esquivar (i-frames)"},
-      {"E",      "Interactuar"},
-      {"I",      "Inventario (descartar)"},
-      {"TAB",    "Estadisticas"},
-      {"H",      "Habilidades"},
+      {"Q / E",  "Habilidad activa 1 / 2"},
+      {"R",      "Interactuar"},
+      {"TAB",    "Info (cambia pestana con flechas)"},
       {"ESC/P",  "Pausa"},
     };
     for (auto &b : binds) {

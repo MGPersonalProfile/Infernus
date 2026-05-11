@@ -3,6 +3,7 @@ import time
 import json
 import os
 import sys
+import shutil
 
 # Define test suite: (script_name, duration_sec, checks_func)
 def check_combat_basic(telemetry):
@@ -31,12 +32,41 @@ def check_full_run(telemetry):
     if not telemetry: return False, "No telemetry"
     return len(telemetry) > 10, f"Full run executed successfully ({len(telemetry)} frames)"
 
+def check_ui_tutorial(telemetry):
+    if not telemetry: return False, "No telemetry"
+    ui_events = [t for t in telemetry if t.get('event') == 'ui_state_changed']
+    has_tutorial = any(e.get('payload', {}).get('to') == 'TUTORIAL_OVERLAY' for e in ui_events)
+    return has_tutorial, f"Tutorial={has_tutorial}"
+
+def check_ui_tabs(telemetry):
+    if not telemetry: return False, "No telemetry"
+    ui_events = [t for t in telemetry if t.get('event') == 'ui_state_changed']
+    has_stats = any(e.get('payload', {}).get('to') == 'STATS_TAB' for e in ui_events)
+    has_abilities = any(e.get('payload', {}).get('to') == 'ABILITIES_TAB' for e in ui_events)
+    has_inventory = any(e.get('payload', {}).get('to') == 'INVENTORY_TAB' for e in ui_events)
+    success = has_stats and has_abilities and has_inventory
+    return success, f"Cycling={success}"
+
+def check_dash_wall(telemetry):
+    if not telemetry: return False, "No telemetry"
+    wall_events = [t for t in telemetry if t.get('event') == 'wall_collision']
+    return len(wall_events) > 0, f"Wall collision triggered ({len(wall_events)} times)"
+
+def check_input_buffer(telemetry):
+    if not telemetry: return False, "No telemetry"
+    buffered = any(t.get('input_buffer', 0) > 0 for t in telemetry)
+    return buffered, "Input buffer populated during heavy attack lockout"
+
 TEST_SUITE = [
     ("combat_basic", 10, check_combat_basic),
     ("move_and_attack", 6, check_move_and_attack),
     ("use_abilities", 6, check_use_abilities),
     ("dash_through_room", 6, check_dash_through_room),
-    ("full_run", 30, check_full_run)
+    ("full_run", 30, check_full_run),
+    ("ui_tutorial_test", 3, check_ui_tutorial),
+    ("ui_tabs_test", 6, check_ui_tabs),
+    ("dash_wall", 4, check_dash_wall),
+    ("input_buffer_test", 3, check_input_buffer)
 ]
 
 def run_test(exe_path, script_name, duration):
@@ -51,6 +81,15 @@ def run_test(exe_path, script_name, duration):
     env["INFERNUS_SCRIPT"] = script_name
     env["INFERNUS_TEST_DURATION"] = str(duration)
     
+    save_file = "save/progress.json"
+    save_backup = "save/progress.json.bak"
+    if script_name == "ui_tutorial_test":
+        os.makedirs("save", exist_ok=True)
+        if os.path.exists(save_file):
+            shutil.copy2(save_file, save_backup)
+        with open(save_file, "w") as f:
+            f.write('{"total_runs":0,"best_room":0,"best_time":0,"lore_found":[],"total_deaths":0,"unlocks":{}}')
+            
     print(f"Launching {exe_path} (headless)...")
     start_time = time.time()
     
@@ -76,6 +115,9 @@ def run_test(exe_path, script_name, duration):
                     telemetry_data.append(json.loads(line))
                 except json.JSONDecodeError:
                     pass
+                    
+    if script_name == "ui_tutorial_test" and os.path.exists(save_backup):
+        shutil.move(save_backup, save_file)
                     
     return telemetry_data
 

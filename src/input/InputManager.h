@@ -200,6 +200,20 @@ public:
     return n;
   }
 
+  // Menu navigation helpers. Route raw IsKeyPressed(KEY_LEFT/RIGHT/D/A) calls
+  // in menu handlers through these so ScriptedInput can drive menu transitions
+  // in headless QA (it intercepts InputAction queries, not raylib raw keys).
+  bool menuNextPressed() const {
+    if (scriptedPressed) return scriptedPressed(InputAction::MOVE_RIGHT);
+    if (headless) return false;
+    return IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D);
+  }
+  bool menuPrevPressed() const {
+    if (scriptedPressed) return scriptedPressed(InputAction::MOVE_LEFT);
+    if (headless) return false;
+    return IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A);
+  }
+
 private:
   std::unordered_map<InputAction, int> keyBinds;
   std::unordered_map<InputAction, int> padBinds; // Placholder gamepad mappings

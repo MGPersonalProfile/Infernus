@@ -124,10 +124,12 @@ inline bool isActionDown(InputAction action) {
   return false;
 }
 
-// Was the action fired this frame? (one-shot taps)
+// Was the action fired this frame? Fires on the first frame the action
+// becomes active and is then suppressed (via `fired`) so it only
+// pulses once per scheduled entry — works for both tap actions and
+// the leading edge of HELD actions (e.g. MOVE_RIGHT inside a menu).
 inline bool isActionPressed(InputAction action) {
   if (!detail::active()) return false;
-  if (!detail::isTapAction(action)) return false;
   float now = detail::elapsed();
   for (auto &a : detail::script()) {
     if (a.action != action) continue;

@@ -1,0 +1,7 @@
+[
+  { "t": 0.5, "action": "OPEN_INFO" },
+  { "t": 1.5, "action": "MOVE_RIGHT", "duration": 0.2 },
+  { "t": 2.5, "action": "MOVE_RIGHT", "duration": 0.2 },
+  { "t": 3.5, "action": "MOVE_RIGHT", "duration": 0.2 },
+  { "t": 4.5, "action": "OPEN_INFO" }
+]
