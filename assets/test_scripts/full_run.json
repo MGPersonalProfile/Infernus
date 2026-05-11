@@ -1,0 +1,20 @@
+[
+  { "_comment": "Smoke test: Full room clear simulation (60s)" },
+  { "t": 0.5, "action": "MOVE_RIGHT", "duration": 3.0 },
+  { "t": 3.5, "action": "ATTACK_LIGHT" },
+  { "t": 4.0, "action": "ATTACK_LIGHT" },
+  { "t": 4.5, "action": "DASH" },
+  { "t": 5.5, "action": "MOVE_UP", "duration": 2.0 },
+  { "t": 7.5, "action": "ABILITY_Q" },
+  { "t": 8.5, "action": "ATTACK_HEAVY" },
+  { "t": 10.0, "action": "MOVE_LEFT", "duration": 2.0 },
+  { "t": 12.0, "action": "PARRY" },
+  { "t": 13.0, "action": "ATTACK_LIGHT" },
+  { "t": 13.5, "action": "ATTACK_LIGHT" },
+  { "t": 14.5, "action": "ABILITY_E" },
+  { "t": 16.0, "action": "MOVE_DOWN", "duration": 2.0 },
+  { "t": 18.0, "action": "DASH" },
+  { "t": 19.0, "action": "ATTACK_HEAVY" },
+  { "t": 21.0, "action": "MOVE_RIGHT", "duration": 3.0 },
+  { "t": 24.0, "action": "ABILITY_Q" }
+]

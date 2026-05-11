@@ -1,10 +1,13 @@
 #pragma once
 #include "../components/Collider.h"
+#include "../components/PlayerStats.h"
 #include "../components/Projectile.h"
 #include "../components/Transform.h"
 #include "../components/Velocity.h"
 #include "../core/ECS.h"
+#include "../debug/Telemetry.h"
 #include "raylib.h"
+#include <cstdio>
 #include <vector>
 
 class CollisionSystem {
@@ -37,6 +40,8 @@ public:
       auto &mv = registry.getComponent<Velocity>(mover);
 
       bool isProjectile = registry.hasComponent<Projectile>(mover);
+      bool isPlayer = registry.hasComponent<PlayerStats>(mover);
+      bool emittedThisFrame = false;
 
       // --- X axis ---
       for (Entity wall : wallCache) {
@@ -56,6 +61,16 @@ public:
         mt.x += pushX;
         mv.vx = 0.0f;
         mc.rect.x = mt.x + mc.offsetX;
+
+        // D.5 telemetry: one wall_collision event per player per frame.
+        // Confirms swept collision is catching dashes instead of tunneling.
+        if (isPlayer && !emittedThisFrame && Telemetry::isActive()) {
+          char buf[96];
+          std::snprintf(buf, sizeof(buf),
+                        "{\"axis\":\"x\",\"x\":%.1f,\"y\":%.1f}", mt.x, mt.y);
+          Telemetry::event("wall_collision", buf);
+          emittedThisFrame = true;
+        }
       }
 
       // --- Y axis ---
@@ -77,6 +92,14 @@ public:
         mt.y += pushY;
         mv.vy = 0.0f;
         mc.rect.y = mt.y + mc.offsetY;
+
+        if (isPlayer && !emittedThisFrame && Telemetry::isActive()) {
+          char buf[96];
+          std::snprintf(buf, sizeof(buf),
+                        "{\"axis\":\"y\",\"x\":%.1f,\"y\":%.1f}", mt.x, mt.y);
+          Telemetry::event("wall_collision", buf);
+          emittedThisFrame = true;
+        }
       }
 
       next_mover:;

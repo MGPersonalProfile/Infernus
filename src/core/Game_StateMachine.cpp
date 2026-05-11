@@ -462,6 +462,35 @@ void Game::update(float deltaTime) {
   // Apply debug time scale (also affects fades, which feels right for slo-mo tests)
   deltaTime *= DebugPanel::tunables().timeScale;
 
+  // --- Telemetry: per-frame ui_state + input_buffer snapshot ---
+  // Updates the values used by Telemetry::tick() for the periodic snapshot,
+  // and emits a discrete ui_state_changed event so headless QA scripts can
+  // verify menu transitions (G.1 tutorial, C.2 TAB tabs) without rendering.
+  if (enableTelemetry) {
+    const char *ui;
+    if (state == GameState::INFO) {
+      static const char *tabs[3] = {"STATS_TAB", "ABILITIES_TAB", "INVENTORY_TAB"};
+      ui = tabs[(infoMenuTab % 3 + 3) % 3];
+    } else if (state == GameState::PLAYING && tutorialFadeRemaining > 0.0f) {
+      ui = "TUTORIAL_OVERLAY";
+    } else if (state == GameState::PLAYING) {
+      ui = "NONE";
+    } else {
+      ui = Telemetry::stateLabel(state); // PAUSED, GAME_OVER, MAIN_MENU, etc.
+    }
+    static std::string prevUI = "";
+    Telemetry::setUIState(ui);
+    Telemetry::setInputBufferSize(inputManager.activeBufferCount());
+    if (prevUI != ui) {
+      char buf[160];
+      std::snprintf(buf, sizeof(buf),
+                    "{\"from\":\"%s\",\"to\":\"%s\"}",
+                    prevUI.c_str(), ui);
+      Telemetry::event("ui_state_changed", buf);
+      prevUI = ui;
+    }
+  }
+
   // Update fade and flash timers globally (so they tick in ALL states,
   // not just PLAYING — fixes red flash persisting on death screen)
   screenEffects.updateFade(deltaTime);

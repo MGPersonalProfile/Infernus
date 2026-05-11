@@ -1,0 +1,9 @@
+[
+  { "_comment": "Smoke test: Move towards enemies and perform attacks" },
+  { "t": 0.5, "action": "MOVE_RIGHT", "duration": 1.5 },
+  { "t": 2.0, "action": "ATTACK_LIGHT" },
+  { "t": 2.5, "action": "ATTACK_LIGHT" },
+  { "t": 3.0, "action": "ATTACK_HEAVY" },
+  { "t": 4.5, "action": "MOVE_UP", "duration": 1.0 },
+  { "t": 5.5, "action": "ATTACK_LIGHT" }
+]

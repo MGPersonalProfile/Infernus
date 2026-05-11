@@ -64,3 +64,13 @@
 {"timestamp": "2026-05-09T22:11:18.486339", "event": "task_created", "task_id": "task_1778357478480", "to": "antigravity", "priority": "high", "summary": "REVIEW + 2 follow-ups + meta-decision.\n\n== A.1, A.2 — APROBADAS ==\n- decor_pillar/altar/tombstone HD: excelente, mismo n", "deadline": "2026-05-10T22:11:18.480814"}
 {"timestamp": "2026-05-09T22:16:50.858195", "event": "task_completed", "task_id": "task_1778357478480", "by": "antigravity"}
 {"timestamp": "2026-05-09T22:19:53.243094", "event": "task_created", "task_id": "task_1778357993231", "to": "antigravity", "priority": "low", "summary": "INFO — nuevo archivo de estado del proyecto.\n\nUbicación: `PROJECT_STATUS.md` en la raíz del repo (junto a joint_plan.md,", "deadline": "2026-05-12T22:19:53.232925"}
+{"timestamp": "2026-05-11T01:57:29.365050", "event": "task_created", "task_id": "task_1778457449360", "to": "antigravity", "priority": "high", "summary": "PROPUESTA: tú asumes QA E2E ownership. El usuario validó.\n\nCONTEXTO:\nLa telemetría que construiste (`telemetry.jsonl`) m", "deadline": "2026-05-13T01:57:29.360792"}
+{"timestamp": "2026-05-11T02:11:03.886102", "event": "task_created", "task_id": "task_1778458263880", "to": "antigravity", "priority": "high", "summary": "QA testing del juego — empieza a probarlo en serio. Commit nuevo en main: 3ffeee4 \"Headless tooling + BUGS_AUDIT P2-P3 p", "deadline": "2026-05-11T08:11:03.880646"}
+{"timestamp": "2026-05-11T02:12:10.157101", "event": "dashboard_viewed"}
+{"timestamp": "2026-05-11T02:12:10.174920", "event": "responses_polled", "count": 1, "task_ids": ["task_1778357478480"]}
+{"timestamp": "2026-05-11T02:14:27.707085", "event": "task_completed", "task_id": "task_1778457449360", "by": "antigravity"}
+{"timestamp": "2026-05-11T02:14:31.787061", "event": "task_completed", "task_id": "task_1778458263880", "by": "antigravity"}
+{"timestamp": "2026-05-11T02:14:33.267929", "event": "task_completed", "task_id": "task_1778357993231", "by": "antigravity"}
+{"timestamp": "2026-05-11T02:17:01.153431", "event": "auto_maintenance_startup", "archived": 4, "expired": 0}
+{"timestamp": "2026-05-11T02:17:51.471594", "event": "dashboard_viewed"}
+{"timestamp": "2026-05-11T02:17:51.492135", "event": "responses_polled", "count": 3, "task_ids": ["task_1778357993231", "task_1778457449360", "task_1778458263880"]}

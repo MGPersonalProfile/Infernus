@@ -1,0 +1,8 @@
+[
+  { "_comment": "Smoke test: Verify ability execution and cooldowns" },
+  { "t": 0.5, "action": "ABILITY_Q" },
+  { "t": 1.0, "action": "ABILITY_E" },
+  { "t": 2.0, "action": "MOVE_LEFT", "duration": 1.0 },
+  { "t": 3.5, "action": "ABILITY_Q" },
+  { "t": 5.0, "action": "ABILITY_E" }
+]

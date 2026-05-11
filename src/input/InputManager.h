@@ -190,6 +190,16 @@ public:
     bufferTimers[action] = BUFFER_WINDOW + 1.0f; // mark past-window
   }
 
+  // Number of actions currently buffered (timer still within BUFFER_WINDOW).
+  // Exposed so telemetry can verify D.6 is actually queueing presses across
+  // animation lockouts during headless QA runs.
+  int activeBufferCount() const {
+    int n = 0;
+    for (const auto &kv : bufferTimers)
+      if (kv.second < BUFFER_WINDOW) n++;
+    return n;
+  }
+
 private:
   std::unordered_map<InputAction, int> keyBinds;
   std::unordered_map<InputAction, int> padBinds; // Placholder gamepad mappings

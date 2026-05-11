@@ -24,7 +24,20 @@ namespace detail {
 inline FILE *&fileHandle() { static FILE *h = nullptr; return h; }
 inline float &accumTimer()  { static float t = 0.0f;   return t; }
 inline float &elapsed()     { static float t = 0.0f;   return t; }
+// UI overlay/state string for the snapshot. Set by the Game each frame so
+// the headless QA scripts can verify menu/overlay transitions (G.1 tutorial,
+// C.2 TAB consolidation) without reading the framebuffer.
+inline std::string &uiStateRef() { static std::string s = "NONE"; return s; }
+// Active input-buffer count (D.6). Set by the Game each frame from
+// InputManager::activeBufferCount(). Lets QA verify queued presses survive
+// animation lockouts.
+inline int &inputBufferRef() { static int n = 0; return n; }
 }
+
+// Game sets these once per frame. tick() includes the current values in the
+// next snapshot. Safe to call when telemetry is inactive — they're cheap.
+inline void setUIState(const char *s)    { detail::uiStateRef() = s ? s : "NONE"; }
+inline void setInputBufferSize(int n)    { detail::inputBufferRef() = n; }
 
 // Open output file. Truncates on first call so each test run is fresh.
 inline void open(const char *path = "telemetry.jsonl") {
@@ -109,9 +122,11 @@ inline void tick(Registry &registry, Entity playerEntity, GameState state,
 
   fprintf(detail::fileHandle(),
           "{\"t\":%.2f,\"hp\":%d,\"stamina\":%d,\"x\":%.1f,\"y\":%.1f,"
-          "\"enemies\":%d,\"state\":\"%s\"}\n",
+          "\"enemies\":%d,\"state\":\"%s\","
+          "\"ui\":\"%s\",\"input_buffer\":%d}\n",
           detail::elapsed(), h.currentHP, stam, t.x, t.y,
-          enemiesAlive, stateLabel(state));
+          enemiesAlive, stateLabel(state),
+          detail::uiStateRef().c_str(), detail::inputBufferRef());
   fflush(detail::fileHandle()); // ensure reader sees lines promptly
 }
 
