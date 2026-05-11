@@ -1,0 +1,68 @@
+[
+  {
+    "t": 0.5,
+    "action": "ATTACK_LIGHT"
+  },
+  {
+    "t": 0.74,
+    "action": "ATTACK_LIGHT"
+  },
+  {
+    "t": 1.03,
+    "action": "ABILITY_Q"
+  },
+  {
+    "t": 1.34,
+    "action": "MOVE_RIGHT",
+    "duration": 0.73
+  },
+  {
+    "t": 1.48,
+    "action": "MOVE_RIGHT",
+    "duration": 0.49
+  },
+  {
+    "t": 1.64,
+    "action": "ABILITY_E"
+  },
+  {
+    "t": 1.82,
+    "action": "MOVE_DOWN",
+    "duration": 0.65
+  },
+  {
+    "t": 2.01,
+    "action": "MOVE_DOWN",
+    "duration": 0.26
+  },
+  {
+    "t": 2.31,
+    "action": "MOVE_LEFT",
+    "duration": 0.9
+  },
+  {
+    "t": 2.43,
+    "action": "ABILITY_Q"
+  },
+  {
+    "t": 2.77,
+    "action": "PARRY"
+  },
+  {
+    "t": 3.03,
+    "action": "ABILITY_E"
+  },
+  {
+    "t": 3.19,
+    "action": "MOVE_LEFT",
+    "duration": 0.94
+  },
+  {
+    "t": 3.29,
+    "action": "PARRY"
+  },
+  {
+    "t": 3.55,
+    "action": "PARRY"
+  }
+]
