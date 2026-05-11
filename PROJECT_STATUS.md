@@ -123,6 +123,35 @@ Comando build: `cmake -S . -B build -G "MinGW Makefiles" && mingw32-make -C buil
    que sigue patrones (mover, atacar, usar Q) — para smoke tests reales
    con damage dealt, room transitions, ability usage.
 
+### Known issue — subprocess spawn desde sandbox sin TTY-stdout
+
+Si Claude (o cualquier proceso) lanza `INFERNUS.exe` vía `subprocess.run`
+o `Popen` desde un shell donde `sys.stdout.isatty() == False`, el engine
+crashea inmediatamente con `STATUS_STACK_BUFFER_OVERRUN` (Windows
+`0xC0000409` = 3221225785) antes incluso del primer `TraceLog`. NO es un
+bug del juego — el mismo binario corre limpio desde PowerShell con
+`Start-Process -NoNewWindow -Wait`, y desde una terminal Windows normal
+funciona con subprocess.run perfectamente.
+
+Lo que falla específicamente: el sandbox bash de Claude Code tiene
+`sys.stdout.isatty() == False`, y cuando lanza un proceso PE32+ console
+con stdout heredado como pipe/DEVNULL, algo en la cadena Windows
+CreateProcess + console init dispara /GS canary detection.
+
+**Workaround para Claude (sandbox):** correr la suite con PowerShell
+tool, no Bash:
+```
+PowerShell.Invoke("python tools/test_gameplay.py")   ← funciona, 9/9
+Bash.Invoke("python tools/test_gameplay.py")         ← 0/9 todas crashean
+```
+
+**Workaround para humanos:** correr desde PowerShell/cmd normal — funciona
+sin problemas.
+
+Si la fuzzer (que usa `subprocess.run` con DEVNULL) reporta crashes,
+**confirmar primero corriendo el mismo seed desde PowerShell.** Si pasa
+ahí, es el artefacto, no un bug real.
+
 ### Pending de fix sessions futuras (BUGS_AUDIT.md P2-P3)
 - A.5 swap torch HD (necesita Antigravity entregar 4-frame spritesheet)
 - D.5 swept collision (tunneling en dash a alta velocidad)

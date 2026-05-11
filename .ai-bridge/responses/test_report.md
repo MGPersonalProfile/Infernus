@@ -4,7 +4,7 @@
 - **move_and_attack**: PASS (Moved and 0 hit events found)
 - **use_abilities**: PASS (Executed ability script without crashes)
 - **dash_through_room**: PASS (Dashes successfully drained stamina)
-- **full_run**: PASS (Full run executed successfully (263 frames))
+- **full_run**: PASS (Full run executed successfully (264 frames))
 - **ui_tutorial_test**: PASS (Tutorial=True)
 - **ui_tabs_test**: PASS (Cycling=True)
 - **dash_wall**: PASS (Wall collision triggered (105 times))

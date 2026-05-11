@@ -283,12 +283,13 @@ void RoomGenerator::instantiate(Registry &registry, const RoomTemplate &room) {
           Texture2D aTex = res.getTexture(ambientPaths[idx]);
           registry.addComponent<Sprite>(ambient, aTex,
                                         Rectangle{0, 0, 64.0f, 64.0f}, 2);
-          // Pillar (idx 0) and tombstone (idx 2) are solid; altar (idx 1) is
-          // decor-only (visible but pass-through).
-          if (idx == 0 || idx == 2) {
-            registry.addComponent<Collider>(ambient, (float)room.tileSize,
-                                            (float)room.tileSize, false);
-          }
+          // All ambient decor is solid — player reported walking through
+          // altars that visually look like obstacles. Make every pillar,
+          // altar, and tombstone block. When altars become interactive,
+          // give them an additional trigger collider instead of removing
+          // the solid one.
+          registry.addComponent<Collider>(ambient, (float)room.tileSize,
+                                          (float)room.tileSize, false);
           registry.addComponent<RoomGeometry>(ambient);
           roomEntities.push_back(ambient);
           ambientPlaced++;

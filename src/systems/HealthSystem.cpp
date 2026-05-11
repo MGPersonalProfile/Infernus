@@ -9,6 +9,7 @@
 #include "../components/Lifetime.h"
 #include "../components/Loot.h"
 #include "../components/Particle.h"
+#include "../components/PlayerStats.h"
 #include "../components/Sprite.h"
 #include "../components/Transform.h"
 #include "../components/Velocity.h"
@@ -48,6 +49,15 @@ void HealthSystem::update(Registry &registry, float deltaTime) {
 
     // --- Death ---
     if (health.isDead()) {
+      // The player is NOT destroyed here. The PLAYING-state death check in
+      // Game_StateMachine reads the Health component to start the GAME_OVER
+      // transition — destroying the entity here would make
+      // hasComponent<Health>(playerEntity) return false on the next frame,
+      // the check would skip, and the game would soft-lock in PLAYING with
+      // no player. Leave the player entity intact; the state machine owns
+      // its lifecycle.
+      if (registry.hasComponent<PlayerStats>(entity)) continue;
+
       float deathX = 0.0f, deathY = 0.0f;
       if (registry.hasComponent<Transform2D>(entity)) {
         auto &t = registry.getComponent<Transform2D>(entity);

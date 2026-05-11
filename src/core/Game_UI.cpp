@@ -431,10 +431,10 @@ void Game::drawOptions() {
   TextUtils::draw("F     Parry", cx + 30, ky, 10, kc);
   ky += 16;
   TextUtils::draw("SPACE Dash", cx - 190, ky, 10, kc);
-  TextUtils::draw("L     Especial", cx + 30, ky, 10, kc);
+  TextUtils::draw("Q / E Habilidades 1 / 2", cx + 30, ky, 10, kc);
   ky += 16;
-  TextUtils::draw("I     Inventario", cx - 190, ky, 10, kc);
-  TextUtils::draw("TAB   Info / H Habs", cx + 30, ky, 10, kc);
+  TextUtils::draw("R     Interactuar", cx - 190, ky, 10, kc);
+  TextUtils::draw("TAB   Info (Stats/Hab/Inv)", cx + 30, ky, 10, kc);
 
   TextUtils::drawCentered("[ESC] Volver", screenHeight - 30, 8,
            Color{80, 80, 80, 255}, screenWidth);
