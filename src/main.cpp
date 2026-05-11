@@ -32,14 +32,21 @@ int main(int argc, char** argv) {
   bool wantTest = std::getenv("INFERNUS_TEST") != nullptr;
   bool wantHeadless = std::getenv("INFERNUS_HEADLESS") != nullptr;
   float wantDuration = 0.0f;
+  std::string wantScript;
   if (const char *d = std::getenv("INFERNUS_TEST_DURATION")) {
     wantDuration = (float)std::atof(d);
+  }
+  if (const char *s = std::getenv("INFERNUS_SCRIPT")) {
+    wantScript = s;
   }
   for (int i = 1; i < argc; i++) {
     if (std::strcmp(argv[i], "--test") == 0) wantTest = true;
     else if (std::strcmp(argv[i], "--headless") == 0) wantHeadless = true;
     else if (std::strcmp(argv[i], "--duration") == 0 && i + 1 < argc) {
       wantDuration = (float)std::atof(argv[++i]);
+    }
+    else if (std::strcmp(argv[i], "--script") == 0 && i + 1 < argc) {
+      wantScript = argv[++i];
     }
   }
 
@@ -56,6 +63,13 @@ int main(int argc, char** argv) {
   }
   if (wantDuration > 0.0f) {
     game.autoQuitAfterSeconds = wantDuration;
+  }
+  if (!wantScript.empty()) {
+    game.scriptedInputPath = wantScript;
+    // Script implies test mode (telemetry on, auto-start). User can still
+    // run with a window if they want to watch the bot play.
+    game.enableTelemetry = true;
+    game.testMode = true;
   }
 
 #ifdef __EMSCRIPTEN__

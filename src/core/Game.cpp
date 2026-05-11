@@ -1,6 +1,7 @@
 #include "Game.h"
 #include "../debug/DebugPanel.h"
 #include "../debug/Profiler.h"
+#include "../debug/ScriptedInput.h"
 #include "../debug/Telemetry.h"
 #include "../scripting/LuaEngine.h"
 #include "../systems/AnimEventDispatcher.h"
@@ -51,6 +52,18 @@ void Game::init() {
   // This lets Claude run the game from a sandbox with no display server.
   ResourceManager::getInstance().setHeadless(headlessMode);
   inputManager.setHeadless(headlessMode);
+
+  // Scripted input: when --script <name> was passed, load timeline and
+  // redirect InputManager queries through ScriptedInput. Lets headless
+  // smoke tests feed deterministic action sequences.
+  if (!scriptedInputPath.empty()) {
+    std::string fullPath = "assets/test_scripts/" + scriptedInputPath + ".json";
+    if (ScriptedInput::load(fullPath)) {
+      inputManager.setScriptedQueries(&ScriptedInput::isActionDown,
+                                      &ScriptedInput::isActionPressed);
+    }
+  }
+
   if (!headlessMode) {
     InitWindow(screenWidth, screenHeight, "INFERNUS");
     SetExitKey(0); // Disable ESC auto-close — we handle ESC ourselves
@@ -65,6 +78,10 @@ void Game::init() {
   LuaEngine::setup();
   inputManager.init();
   cameraSystem.init(screenWidth, screenHeight);
+  // Open telemetry sink EARLY so events fired during startGame() (room_entered,
+  // hit_dealt if any) are captured. Was a chicken-and-egg: tick() opened on
+  // demand but startGame ran before the first tick.
+  if (enableTelemetry) Telemetry::open();
   abilitySystem.loadAbilities("assets/data/abilities.json");
   abilitySystem.loadActiveAbilities("assets/data/active_abilities.json");
   synergySystem.loadSynergies("assets/data/synergies.json");

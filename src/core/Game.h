@@ -53,6 +53,7 @@ public:
   bool testMode = false;
   bool headlessMode = false;            // skip InitWindow + render path
   float autoQuitAfterSeconds = 0.0f;    // 0 = no auto-quit
+  std::string scriptedInputPath;        // empty = no scripted input
 
 private:
   int screenWidth;
@@ -130,6 +131,10 @@ private:
 
   // Debug overlay (F3 in PLAYING)
   bool showDebug = false;
+
+  // First-run tutorial overlay (G.1). Counts down each frame in PLAYING.
+  // Shown only when saveManager.getProgress().totalRuns == 0.
+  float tutorialFadeRemaining = 0.0f;
 
   // Inventory
   int inventorySelectedSlot = 0;

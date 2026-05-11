@@ -1,6 +1,7 @@
 #include "Game.h"
 #include "../debug/DebugPanel.h"
 #include "../debug/Profiler.h"
+#include "../debug/ScriptedInput.h"
 #include "../debug/Telemetry.h"
 #include "../scripting/LuaEngine.h"
 #include "../systems/PartikelEmitters.h"
@@ -114,10 +115,14 @@ void Game::handlePlayerInput(float deltaTime) {
   const float fDashIframes   = LuaEngine::getFeel("dash_iframes",   Constants::DASH_IFRAMES);
   const float fDashSpeed     = LuaEngine::getFeel("dash_speed",     Constants::DASH_SPEED);
 
+  // D.6: refresh input buffer for queued actions (attacks/dash/parry/abilities).
+  inputManager.tickInputBuffer(deltaTime);
+
   if (combat.currentState == AttackState::NONE) {
     // --- Parry (F / RB) ---
-    if (inputManager.isActionPressed(InputAction::PARRY) &&
+    if (inputManager.isBufferedPressed(InputAction::PARRY) &&
         stamina.hasEnough(fParryStamina)) {
+      inputManager.consumeBuffer(InputAction::PARRY);
       combat.currentState = AttackState::PARRY_ACTIVE;
       combat.stateTimer = fParryWindow;
       stamina.currentStamina -= fParryStamina;
@@ -126,8 +131,9 @@ void Game::handlePlayerInput(float deltaTime) {
     }
     // --- Combo finisher: 3 lights → heavy input triggers finisher ---
     else if (combat.comboCount >= 3 &&
-             inputManager.isActionPressed(InputAction::ATTACK_HEAVY) &&
+             inputManager.isBufferedPressed(InputAction::ATTACK_HEAVY) &&
              stamina.hasEnough(fHeavyStamina)) {
+      inputManager.consumeBuffer(InputAction::ATTACK_HEAVY);
       combat.currentState = AttackState::WINDUP;
       combat.stateTimer = fHeavyWindup * windupMult * 0.7f;
       combat.lastAttackType = AttackType::HEAVY;
@@ -141,8 +147,9 @@ void Game::handlePlayerInput(float deltaTime) {
         registry.getComponent<AnimState>(playerEntity).setState(AnimStateType::ATTACK);
     }
     // --- Light attack (combo chain) ---
-    else if (inputManager.isActionPressed(InputAction::ATTACK_LIGHT) &&
+    else if (inputManager.isBufferedPressed(InputAction::ATTACK_LIGHT) &&
              stamina.hasEnough(fLightStamina)) {
+      inputManager.consumeBuffer(InputAction::ATTACK_LIGHT);
       combat.currentState = AttackState::WINDUP;
       float speedup = 1.0f - combat.comboCount * 0.08f; // each hit slightly faster
       combat.stateTimer = fLightWindup * windupMult * speedup;
@@ -156,8 +163,9 @@ void Game::handlePlayerInput(float deltaTime) {
         registry.getComponent<AnimState>(playerEntity).setState(AnimStateType::ATTACK);
     }
     // --- Heavy attack (standalone) ---
-    else if (inputManager.isActionPressed(InputAction::ATTACK_HEAVY) &&
+    else if (inputManager.isBufferedPressed(InputAction::ATTACK_HEAVY) &&
              stamina.hasEnough(fHeavyStamina)) {
+      inputManager.consumeBuffer(InputAction::ATTACK_HEAVY);
       combat.currentState = AttackState::WINDUP;
       combat.stateTimer = fHeavyWindup * windupMult;
       combat.lastAttackType = AttackType::HEAVY;
@@ -171,8 +179,9 @@ void Game::handlePlayerInput(float deltaTime) {
     }
   }
 
-  if (inputManager.isActionPressed(InputAction::DASH) &&
+  if (inputManager.isBufferedPressed(InputAction::DASH) &&
       stamina.hasEnough(fDashStamina)) {
+    inputManager.consumeBuffer(InputAction::DASH);
     stamina.currentStamina -= fDashStamina;
     stamina.cooldownTimer = stamina.regenDelay;
     AudioManager::getInstance().playSFX("dash");
@@ -294,12 +303,14 @@ void Game::handlePlayerInput(float deltaTime) {
       }
   }
 
-  // === Active abilities (Q / E) ===
-  if (inputManager.isActionPressed(InputAction::ABILITY_Q)) {
-    abilitySystem.tryUseActive(registry, playerEntity, 0);
+  // === Active abilities (Q / E) — buffered (D.6) ===
+  if (inputManager.isBufferedPressed(InputAction::ABILITY_Q)) {
+    if (abilitySystem.tryUseActive(registry, playerEntity, 0))
+      inputManager.consumeBuffer(InputAction::ABILITY_Q);
   }
-  if (inputManager.isActionPressed(InputAction::ABILITY_E)) {
-    abilitySystem.tryUseActive(registry, playerEntity, 1);
+  if (inputManager.isBufferedPressed(InputAction::ABILITY_E)) {
+    if (abilitySystem.tryUseActive(registry, playerEntity, 1))
+      inputManager.consumeBuffer(InputAction::ABILITY_E);
   }
 }
 
@@ -445,6 +456,8 @@ void Game::update(float deltaTime) {
     DebugPanel::handleInput();
     LuaEngine::handleInput();
   }
+  // Advance scripted input clock (no-op if no script loaded)
+  if (ScriptedInput::isActive()) ScriptedInput::tick(deltaTime);
 
   // Apply debug time scale (also affects fades, which feels right for slo-mo tests)
   deltaTime *= DebugPanel::tunables().timeScale;
@@ -885,6 +898,12 @@ void Game::update(float deltaTime) {
   if (specialCooldownTimer > 0.0f)
     specialCooldownTimer -= deltaTime;
 
+  // First-run tutorial countdown (G.1)
+  if (tutorialFadeRemaining > 0.0f) {
+    tutorialFadeRemaining -= deltaTime;
+    if (tutorialFadeRemaining < 0.0f) tutorialFadeRemaining = 0.0f;
+  }
+
   // Hitstop check — freeze gameplay briefly on big hits
   if (screenEffects.update(deltaTime))
     return; // In hitstop — skip gameplay update
@@ -894,20 +913,11 @@ void Game::update(float deltaTime) {
     state = GameState::PAUSED;
   }
 
-  // Inventory / Stats toggle
-  if (inputManager.isActionPressed(InputAction::OPEN_INVENTORY)) {
-    inventorySelectedSlot = 0;
-    state = GameState::INVENTORY;
-    return;
-  }
+  // INFO menu — single entry via TAB. Inside the menu, arrows switch tabs
+  // (Stats / Abilities / Inventory). Old I and H bindings retired (C.2).
   if (inputManager.isActionPressed(InputAction::OPEN_INFO)) {
     state = GameState::INFO;
     infoMenuTab = 0;
-    return;
-  }
-  if (inputManager.isActionPressed(InputAction::OPEN_ABILITIES)) {
-    state = GameState::INFO;
-    infoMenuTab = 1;
     return;
   }
 
@@ -930,10 +940,31 @@ void Game::update(float deltaTime) {
   aiSystem.update(registry, deltaTime);
   bossAISystem.update(registry, cameraSystem, deltaTime, playerEntity);
   miniBossAISystem.update(registry, cameraSystem, deltaTime, playerEntity);
-  movementSystem.update(registry, deltaTime);
 
-  collisionSystem.update(registry);
-  collisionSystem.resolveWallCollisions(registry);
+  // D.5: swept collision — sub-step movement + collision when the fastest
+  // mover would otherwise travel further than half a tile in one frame
+  // (prevents tunneling at high dash speeds or low framerates).
+  int substeps = 1;
+  {
+    const float MAX_STEP_PX = 16.0f;
+    float maxSpeed = 0.0f;
+    auto vels = registry.view<Velocity>();
+    for (Entity e : vels) {
+      auto &v = registry.getComponent<Velocity>(e);
+      float s = std::max(std::abs(v.vx), std::abs(v.vy));
+      if (s > maxSpeed) maxSpeed = s;
+    }
+    float maxMove = maxSpeed * deltaTime;
+    if (maxMove > MAX_STEP_PX)
+      substeps = (int)std::ceil(maxMove / MAX_STEP_PX);
+    if (substeps > 8) substeps = 8;
+  }
+  float subDt = deltaTime / (float)substeps;
+  for (int i = 0; i < substeps; i++) {
+    movementSystem.update(registry, subDt);
+    collisionSystem.update(registry);
+    collisionSystem.resolveWallCollisions(registry);
+  }
   collisionSystem.enforceBoundaries(registry,
                                     (float)roomGenerator.getPixelWidth(),
                                     (float)roomGenerator.getPixelHeight());

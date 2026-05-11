@@ -41,9 +41,11 @@ public:
     keyBinds[InputAction::PARRY] = KEY_F;
     keyBinds[InputAction::ABILITY_Q] = KEY_Q;         // active ability slot 1
     keyBinds[InputAction::ABILITY_E] = KEY_E;         // active ability slot 2
-    keyBinds[InputAction::OPEN_INVENTORY] = KEY_I;
+    // C.2 consolidation: TAB is now the single key for all info menus.
+    // OPEN_INVENTORY (was KEY_I) and OPEN_ABILITIES (was KEY_H) retired —
+    // both views are reachable via tabs inside the INFO menu (TAB to open,
+    // then arrow keys to switch tabs). Enum retained for backward-compat.
     keyBinds[InputAction::OPEN_INFO] = KEY_TAB;
-    keyBinds[InputAction::OPEN_ABILITIES] = KEY_H;
 
     // Default Gamepad Bindings (Preparing Interface)
     padBinds[InputAction::MOVE_UP] = GAMEPAD_BUTTON_LEFT_FACE_UP;
@@ -73,8 +75,17 @@ public:
   // crash because raylib requires an InitWindow'd context.
   void setHeadless(bool h) { headless = h; }
 
+  // Function pointers for ScriptedInput delegation. Set by Game::init when a
+  // --script is loaded. Lets us avoid a circular header dep on ScriptedInput.h.
+  using QueryFn = bool(*)(InputAction);
+  void setScriptedQueries(QueryFn down, QueryFn pressed) {
+    scriptedDown = down;
+    scriptedPressed = pressed;
+  }
+
   // Check if key/button for action is currently held down
   bool isActionDown(InputAction action) const {
+    if (scriptedDown) return scriptedDown(action);
     if (headless) return false;
     bool down = false;
 
@@ -96,6 +107,7 @@ public:
 
   // Check if key/button for action was just pressed this frame
   bool isActionPressed(InputAction action) const {
+    if (scriptedPressed) return scriptedPressed(action);
     if (headless) return false;
     bool pressed = false;
 
@@ -120,6 +132,14 @@ public:
   struct MoveVector { float x = 0.0f; float y = 0.0f; };
   MoveVector getMoveAxis() const {
     MoveVector v;
+    if (scriptedDown) {
+      // Derive analog vector from MOVE_* held states from the script.
+      if (scriptedDown(InputAction::MOVE_LEFT))  v.x -= 1.0f;
+      if (scriptedDown(InputAction::MOVE_RIGHT)) v.x += 1.0f;
+      if (scriptedDown(InputAction::MOVE_UP))    v.y -= 1.0f;
+      if (scriptedDown(InputAction::MOVE_DOWN))  v.y += 1.0f;
+      return v;
+    }
     if (headless) return v;
     if (IsGamepadAvailable(0)) {
       float ax = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
@@ -138,8 +158,45 @@ public:
 
   bool isGamepadActive() const { return !headless && IsGamepadAvailable(0); }
 
+  // === D.6: Input buffer (0.2s) =============================================
+  // When the player presses an attack/dodge mid-animation, the press stays
+  // "alive" for BUFFER_WINDOW seconds. Combat code peeks with
+  // isBufferedPressed() and calls consumeBuffer() once the action fires —
+  // so a press isn't lost if stamina is briefly insufficient or the player
+  // is in a brief lockout.
+  static constexpr float BUFFER_WINDOW = 0.2f;
+
+  // Call once per frame, before any consumeBuffer / isBufferedPressed
+  // queries. Top up the timer for any buffered action that was just pressed,
+  // and decay everything else.
+  void tickInputBuffer(float dt) {
+    for (auto &kv : bufferTimers) kv.second += dt;
+    static const InputAction tracked[] = {
+        InputAction::ATTACK_LIGHT, InputAction::ATTACK_HEAVY,
+        InputAction::DASH,         InputAction::PARRY,
+        InputAction::ABILITY_Q,    InputAction::ABILITY_E,
+    };
+    for (auto a : tracked) {
+      if (isActionPressed(a)) bufferTimers[a] = 0.0f;
+    }
+  }
+
+  bool isBufferedPressed(InputAction action) const {
+    auto it = bufferTimers.find(action);
+    return it != bufferTimers.end() && it->second < BUFFER_WINDOW;
+  }
+
+  void consumeBuffer(InputAction action) {
+    bufferTimers[action] = BUFFER_WINDOW + 1.0f; // mark past-window
+  }
+
 private:
   std::unordered_map<InputAction, int> keyBinds;
   std::unordered_map<InputAction, int> padBinds; // Placholder gamepad mappings
   bool headless = false; // when true, all input queries return idle
+  // ScriptedInput hooks: when set, override raylib queries entirely. Used in
+  // headless test runs to feed deterministic action timelines.
+  QueryFn scriptedDown = nullptr;
+  QueryFn scriptedPressed = nullptr;
+  std::unordered_map<InputAction, float> bufferTimers; // D.6 ring buffer
 };

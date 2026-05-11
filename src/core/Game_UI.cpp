@@ -181,6 +181,39 @@ void Game::drawHUD() {
     drawSlot(0, "Q", actives.hasQ, actives.slotQ, actives.cooldownQ);
     drawSlot(1, "E", actives.hasE, actives.slotE, actives.cooldownE);
   }
+
+  // === First-run tutorial overlay (G.1) ===
+  // Hint panel with the core control prompts. Fades out over the last 2s.
+  if (tutorialFadeRemaining > 0.0f) {
+    const float FADE = 2.0f;
+    float alpha = tutorialFadeRemaining > FADE
+                    ? 1.0f
+                    : (tutorialFadeRemaining / FADE);
+    unsigned char a = (unsigned char)(alpha * 220);
+    unsigned char at = (unsigned char)(alpha * 255);
+    int pw = 320, ph = 132;
+    int px = (screenWidth - pw) / 2;
+    int py = screenHeight - ph - 24;
+    DrawRectangle(px, py, pw, ph, Color{15, 8, 4, a});
+    DrawRectangleLinesEx({(float)px, (float)py, (float)pw, (float)ph}, 2.0f,
+                         Color{180, 140, 70, a});
+    TextUtils::drawCenteredOutlined("CONTROLES", py + 8, 14,
+                                    Color{230, 190, 100, at}, pw, 2,
+                                    Color{0, 0, 0, at});
+    Color txt = Color{220, 210, 190, at};
+    TextUtils::draw("WASD  Moverse",      px + 16, py + 32, 11, txt);
+    TextUtils::draw("J     Atacar",       px + 16, py + 48, 11, txt);
+    TextUtils::draw("K     Pesado",       px + 16, py + 64, 11, txt);
+    TextUtils::draw("SPACE Esquivar",     px + 16, py + 80, 11, txt);
+    TextUtils::draw("F     Parry",        px + 170, py + 32, 11, txt);
+    TextUtils::draw("Q/E   Habilidad",    px + 170, py + 48, 11, txt);
+    TextUtils::draw("TAB   Info",         px + 170, py + 64, 11, txt);
+    TextUtils::draw("R     Interactuar",  px + 170, py + 80, 11, txt);
+    TextUtils::drawCenteredOutlined("(este aviso solo aparece la primera vez)",
+                                    py + ph - 18, 9,
+                                    Color{160, 130, 90, at}, pw, 1,
+                                    Color{0, 0, 0, at});
+  }
 }
 
 

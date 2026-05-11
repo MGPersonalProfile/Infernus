@@ -437,6 +437,10 @@ void Game::startGame(int characterIndex) {
   enemiesAlive = 0;
   roomCleared = false;
 
+  // First-run tutorial overlay (G.1): show prompts for 8s on very first run.
+  tutorialFadeRemaining =
+      (saveManager.getProgress().totalRuns == 0) ? 8.0f : 0.0f;
+
   // Generate the run map and spawn the first room
   runMap.generate();
   state = GameState::PLAYING;
