@@ -1,4 +1,0 @@
-[
-  { "t": 0.5, "action": "MOVE_LEFT", "duration": 2.0 },
-  { "t": 2.6, "action": "DASH" }
-]

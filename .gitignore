@@ -1,57 +1,64 @@
-# Archivos de build y ejecutables
-build/
-build_web/
-*.exe
-*.obj
-*.dll
-*.pdb
-*.ilk
-*.wasm
-*.wasm.map
+# ===== Godot 4 =====
+# Editor cache (large, regenerated on open)
+.godot/
 
-# Recovered alfa archive (large binary)
-Infernus*.zip
-assets/art/Laboratorio_1_CMN.doc.htm
+# Legacy import cache (Godot 3 - keep just in case)
+.import/
 
-# Debug / playtest screenshots
-recovery_frames/
+# Per-user editor settings
+*.tmp
+*.translation
 
-# Node screenshot tooling
-node_modules/
-package.json
-package-lock.json
+# Export presets w/ credentials
+export_credentials.cfg
 
-# Visual Studio / VS Code
+# Local build / export outputs
+builds/
+exports/
+bin/
+obj/
+
+# ===== C# =====
+*.csproj.user
+*.suo
+*.user
+*.userprefs
+*.pidb
+
+# Compiled assemblies in subprojects
+**/bin/
+**/obj/
+
+# ===== IDE / Editors =====
 .vscode/
 .vs/
-*.sln
-*.vcxproj
-*.vcxproj.user
+.idea/
+*.sln.docstates
 
-# Archivos temporales de SO
+# ===== OS =====
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Claude / clangd
+# ===== Claude Code / dev tooling =====
+# Per-user Claude config (not committed)
 .claude/
+
+# Per-user MCP server registry
+.mcp.json
+
+# clangd / compile_commands (if any C++ tooling is added later)
 .clangd
 compile_commands.json
 
-# Save data
-save/
-
-# Temp files
-*.resolved
+# ===== Project-specific runtime / scratch =====
+# Telemetry / logs
+*.jsonl
 *.log
 
-# ImGui state
-imgui.ini
+# Screenshots (use references/ subfolder for committed references)
+recovery_frames/
+screenshots/
 
-# MCP local config
-.mcp.json
-
-# Build cache
-.cache/
-
-# User documents (not code)
-*.pdf
+# Temp resolved/handover files
+*.resolved

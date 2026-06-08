@@ -1,7 +1,0 @@
-[
-  { "t": 0.5, "action": "ATTACK_HEAVY" },
-  { "t": 0.6, "action": "ATTACK_LIGHT" },
-  { "t": 0.7, "action": "ATTACK_LIGHT" },
-  { "t": 0.8, "action": "ATTACK_LIGHT" },
-  { "t": 0.9, "action": "ATTACK_LIGHT" }
-]

@@ -1,8 +1,0 @@
-{
-    "name": "asset_generation",
-    "description": "Generar asset visual con script Python",
-    "default_priority": "medium",
-    "required_params": ["asset_type", "description", "output_path"],
-    "task_template": "Genera el asset '{{asset_type}}': {{description}}. Guardalo en {{output_path}}. Formato PNG, fondo transparente donde aplique.",
-    "context_template": "Paleta del juego: Sangre (#8B0000), Ceniza (#2B2B2B), Lava (#CC4400), Negro (#0A0A0A), Highlight (#FF2200), Dorado (#DAA520). Estilo pixel art Dark Souls. {{extra_context}}"
-}

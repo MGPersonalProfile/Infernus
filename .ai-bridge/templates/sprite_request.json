@@ -1,8 +1,0 @@
-{
-    "name": "sprite_request",
-    "description": "Solicitar spritesheet a Antigravity",
-    "default_priority": "medium",
-    "required_params": ["entity", "dimensions", "frames", "style"],
-    "task_template": "Genera un spritesheet para '{{entity}}'. Dimensiones por frame: {{dimensions}}. Frames: {{frames}}. Estilo: {{style}}. Fondo transparente PNG. Guardalo en {{output_path}}.",
-    "context_template": "El juego usa Raylib con spritesheets horizontales. El ResourceManager carga con LoadTexture(). Los frames deben ser contiguos de izquierda a derecha. Paleta del Circulo VII: rojos (#8B0000), gris oscuro (#2B2B2B), naranja lava (#CC4400). {{extra_context}}"
-}
