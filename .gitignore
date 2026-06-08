@@ -62,3 +62,7 @@ screenshots/
 
 # Temp resolved/handover files
 *.resolved
+
+# Godot editor binary (per-user)
+Godot_v*/
+godot/
