@@ -1,0 +1,38 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="INFERNUS"
+config/description="Roguelite side-scroller souls-like. Descenso al Círculo VII del Infierno de Dante."
+config/version="0.0.1"
+config/features=PackedStringArray("4.6", "Forward Plus")
+config/icon="res://assets/icons/icon.svg"
+run/main_scene="res://scenes/main.tscn"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+2d/snap/snap_2d_transforms_to_pixel=true
+2d/snap/snap_2d_vertices_to_pixel=true
+anti_aliasing/quality/msaa_2d=0
+
+[input]
+
+; Placeholder. The real input map gets defined when we wire the player
+; controller. Names match GDD vocabulary, not raw keys, so we can
+; remap without touching gameplay code.

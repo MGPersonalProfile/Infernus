@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://infernus_main"]
+
+[node name="Main" type="Node2D"]
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Setup" type="Label" parent="HUD"]
+offset_left = 540.0
+offset_top = 320.0
+offset_right = 740.0
+offset_bottom = 400.0
+text = "INFERNUS
+
+setup ok"
+horizontal_alignment = 1
+vertical_alignment = 1
