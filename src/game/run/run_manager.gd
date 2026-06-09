@@ -49,6 +49,12 @@ func _load_room(path: String) -> void:
 		return
 
 	if _current_room != null:
+		# Desconectar room_cleared: si la room vieja no estaba cleared (ej.
+		# player murió en mitad de pelea), la liberación de sus enemies
+		# en el next frame disparó room_cleared en cascada y RunManager
+		# encadenaba ability_choice fantasma.
+		if _current_room.room_cleared.is_connected(_on_room_cleared):
+			_current_room.room_cleared.disconnect(_on_room_cleared)
 		_current_room.queue_free()
 		_current_room = null
 

@@ -66,3 +66,8 @@ screenshots/
 # Godot editor binary (per-user)
 Godot_v*/
 godot/
+
+# Godot MCP Pro (paid product, per-user)
+godot-mcp-pro-*/
+godot-mcp-pro-*.zip
+addons/godot_mcp/

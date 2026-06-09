@@ -10,4 +10,6 @@ extends Node2D
 
 func _ready() -> void:
 	RunState.reset()
-	RunManager.bind(self, _player, _camera)
+	# Deferred: RunRoot aún está añadiendo Player/Camera/HUD a su tree.
+	# bind() llama add_child(room), que falla síncrono durante _ready del parent.
+	RunManager.bind.call_deferred(self, _player, _camera)
