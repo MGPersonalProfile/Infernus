@@ -16,7 +16,8 @@ enum State { PATROL, CHASE, STAGGER, DEAD }
 @export var chase_range: float = 250.0
 @export var contact_damage: int = 10
 @export var contact_cooldown: float = 0.6
-@export var stagger_duration: float = 0.20
+@export var stagger_duration: float = 0.30
+@export var stagger_friction: float = 500.0
 
 ## Offsets desde la posición inicial para los extremos del patrullaje.
 @export var patrol_left_offset: float = -150.0
@@ -38,7 +39,7 @@ var _contact_cd_remaining: float = 0.0
 var _stagger_remaining: float = 0.0
 
 # Visual feedback al recibir hit: el sprite parpadea blanco
-const _HIT_FLASH_DURATION: float = 0.08
+const _HIT_FLASH_DURATION: float = 0.20
 var _sprite: Polygon2D
 var _sprite_base_color: Color = Color(0.30, 0.55, 0.35, 1)
 var _hit_flash_remaining: float = 0.0
@@ -87,8 +88,9 @@ func _physics_process(delta: float) -> void:
 		State.CHASE:
 			_tick_chase()
 		State.STAGGER:
-			# Stagger: friction horizontal, no acción
-			velocity.x = move_toward(velocity.x, 0.0, 1400.0 * delta)
+			# Stagger: friction horizontal mucho más blanda que el movimiento
+			# normal, para que el knockback se deje SENTIR antes de pararse.
+			velocity.x = move_toward(velocity.x, 0.0, stagger_friction * delta)
 
 	move_and_slide()
 	_try_damage_player()
@@ -143,7 +145,11 @@ func _try_damage_player() -> void:
 
 # === Hooks de Health ===
 
-func _on_damaged(_amount: int, _source: Node) -> void:
+func _on_damaged(amount: int, source: Node) -> void:
+	# DEBUG temporal: si esto no aparece en la consola, el callback nunca
+	# se ejecuta (problema de signal connect). Si aparece, el daño se
+	# aplica y debería verse el flash/knockback.
+	print("[enemy] damaged ", amount, " by ", source, " hp=", _health.current_hp if _health else "?")
 	state = State.STAGGER
 	_stagger_remaining = stagger_duration
 	if _sprite != null:
