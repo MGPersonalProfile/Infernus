@@ -10,8 +10,8 @@ extends Camera2D
 ## cuando este nodo vive en una scene root. Resolvemos en _ready().
 
 @export var target_path: NodePath
-@export_range(0.0, 200.0, 5.0) var look_ahead_distance: float = 60.0
-@export_range(0.0, 1.0, 0.01) var smoothing: float = 0.12
+@export_range(0.0, 200.0, 5.0) var look_ahead_distance: float = 40.0
+@export_range(0.0, 1.0, 0.01) var smoothing: float = 0.05
 
 var _target: Node2D
 var _desired_offset_x: float = 0.0
