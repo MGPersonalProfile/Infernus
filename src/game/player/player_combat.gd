@@ -51,12 +51,17 @@ func _ready() -> void:
 	if player_path != NodePath(""):
 		_player = get_node_or_null(player_path) as Node2D
 
+	# Hitboxes monitorean siempre. NO conectamos area_entered porque
+	# en Godot las áreas que YA están dentro al pasar monitoring de
+	# false→true no se reportan vía signal (solo cuando ENTRAN nuevo).
+	# Como atacas estando cerca del enemigo, su HurtBox suele estar
+	# dentro antes del active → sin signal, sin daño. Workaround:
+	# durante ACTIVE preguntamos manualmente get_overlapping_areas()
+	# cada frame y procesamos las que aún no hayamos golpeado.
 	if _hitbox_light:
-		_hitbox_light.monitoring = false
-		_hitbox_light.area_entered.connect(_on_area_entered.bind(AttackKind.LIGHT))
+		_hitbox_light.monitoring = true
 	if _hitbox_heavy:
-		_hitbox_heavy.monitoring = false
-		_hitbox_heavy.area_entered.connect(_on_area_entered.bind(AttackKind.HEAVY))
+		_hitbox_heavy.monitoring = true
 
 
 func _process(delta: float) -> void:
@@ -70,6 +75,7 @@ func _process(delta: float) -> void:
 			_tick_state(delta, _enter_active)
 		AttackState.ACTIVE:
 			_orient_hitboxes()
+			_check_active_hits()
 			_tick_state(delta, _enter_recovery)
 		AttackState.RECOVERY:
 			_tick_state(delta, _enter_idle_with_combo_window)
@@ -114,19 +120,12 @@ func _tick_state(delta: float, on_finished: Callable) -> void:
 func _enter_active() -> void:
 	_state_timer = config.light_active if _current_kind == AttackKind.LIGHT else config.heavy_active
 	state = AttackState.ACTIVE
-	var box: Area2D = _hitbox_light if _current_kind == AttackKind.LIGHT else _hitbox_heavy
-	if box:
-		_orient_hitboxes()
-		box.monitoring = true
+	_orient_hitboxes()
 
 
 func _enter_recovery() -> void:
 	_state_timer = config.light_recovery if _current_kind == AttackKind.LIGHT else config.heavy_recovery
 	state = AttackState.RECOVERY
-	if _hitbox_light:
-		_hitbox_light.monitoring = false
-	if _hitbox_heavy:
-		_hitbox_heavy.monitoring = false
 
 
 func _enter_idle_with_combo_window() -> void:
@@ -151,7 +150,18 @@ func _orient_hitboxes() -> void:
 
 # === Hit detection ===
 
-func _on_area_entered(area: Area2D, kind: int) -> void:
+## Cada physics_frame durante ACTIVE: pregunta al hitbox actual qué
+## HurtBoxes está tocando y procesa las que aún no hayamos pegado en
+## este swing. _already_hit_this_swing evita doble-tick por target.
+func _check_active_hits() -> void:
+	var box: Area2D = _hitbox_light if _current_kind == AttackKind.LIGHT else _hitbox_heavy
+	if box == null:
+		return
+	for area in box.get_overlapping_areas():
+		_process_hit(area, _current_kind)
+
+
+func _process_hit(area: Area2D, kind: int) -> void:
 	# Las HurtBox son Area2D hijas del nodo "víctima" (Enemy, etc.).
 	# El target es el parent de la HurtBox, que debería tener un hijo "Health".
 	var target: Node = area.get_parent()

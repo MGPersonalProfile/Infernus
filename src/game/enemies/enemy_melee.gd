@@ -37,6 +37,12 @@ var _patrol_direction: float = 1.0
 var _contact_cd_remaining: float = 0.0
 var _stagger_remaining: float = 0.0
 
+# Visual feedback al recibir hit: el sprite parpadea blanco
+const _HIT_FLASH_DURATION: float = 0.08
+var _sprite: Polygon2D
+var _sprite_base_color: Color = Color(0.30, 0.55, 0.35, 1)
+var _hit_flash_remaining: float = 0.0
+
 
 func _ready() -> void:
 	_patrol_left_x = global_position.x + patrol_left_offset
@@ -48,6 +54,9 @@ func _ready() -> void:
 		if _health != null:
 			_health.damaged.connect(_on_damaged)
 			_health.died.connect(_on_died)
+	_sprite = get_node_or_null("Sprite") as Polygon2D
+	if _sprite != null:
+		_sprite_base_color = _sprite.color
 
 
 func _physics_process(delta: float) -> void:
@@ -61,6 +70,11 @@ func _physics_process(delta: float) -> void:
 
 	if _contact_cd_remaining > 0.0:
 		_contact_cd_remaining -= delta
+
+	if _hit_flash_remaining > 0.0:
+		_hit_flash_remaining -= delta
+		if _hit_flash_remaining <= 0.0 and _sprite != null:
+			_sprite.color = _sprite_base_color
 
 	# Gravedad siempre
 	if not is_on_floor():
@@ -132,6 +146,9 @@ func _try_damage_player() -> void:
 func _on_damaged(_amount: int, _source: Node) -> void:
 	state = State.STAGGER
 	_stagger_remaining = stagger_duration
+	if _sprite != null:
+		_sprite.color = Color.WHITE
+		_hit_flash_remaining = _HIT_FLASH_DURATION
 
 
 func _on_died() -> void:
