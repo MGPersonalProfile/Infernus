@@ -1,11 +1,16 @@
 class_name PlayerCombat
-extends Node
+extends Node2D
 
 ## Componente de combate del jugador. State machine independiente del
 ## movement: WINDUP → ACTIVE → RECOVERY. Maneja light/heavy y combos.
 ##
 ## Notifica al Player cuándo bloquear movimiento (durante WINDUP+ACTIVE)
 ## y a HitFx cuando un golpe conecta (hitstop + screen shake).
+##
+## OBLIGATORIO Node2D (no Node) porque sus hijos son Area2D y necesitan
+## heredar la transform del Player para posicionarse correctamente.
+## Un Node normal no propaga la transform 2D — los hitboxes se quedarían
+## en world (0, 0) sin importar dónde esté el player.
 
 signal attack_in_progress_changed(in_progress: bool)
 signal attack_hit(target: Node, kind: int)

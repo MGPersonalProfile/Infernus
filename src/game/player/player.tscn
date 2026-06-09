@@ -43,7 +43,7 @@ max_stamina = 100.0
 regen_per_second = 30.0
 regen_delay_after_use = 0.5
 
-[node name="Combat" type="Node" parent="."]
+[node name="Combat" type="Node2D" parent="."]
 script = ExtResource("5")
 config = ExtResource("6")
 stamina_path = NodePath("../Stamina")
