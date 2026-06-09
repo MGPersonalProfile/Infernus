@@ -13,22 +13,12 @@ size = Vector2(192, 16)
 
 [node name="World" type="Node2D" parent="."]
 
-[node name="Background" type="ColorRect" parent="World"]
-offset_left = 0.0
-offset_top = 0.0
-offset_right = 1280.0
-offset_bottom = 720.0
-color = Color(0.05, 0.04, 0.06, 1)
-
 [node name="Ground" type="StaticBody2D" parent="World"]
 position = Vector2(640, 656)
 
-[node name="Visual" type="ColorRect" parent="World/Ground"]
-offset_left = -640.0
-offset_top = -32.0
-offset_right = 640.0
-offset_bottom = 32.0
+[node name="Visual" type="Polygon2D" parent="World/Ground"]
 color = Color(0.22, 0.13, 0.10, 1)
+polygon = PackedVector2Array(-640, -32, 640, -32, 640, 32, -640, 32)
 
 [node name="Collision" type="CollisionShape2D" parent="World/Ground"]
 shape = SubResource("GroundShape")
@@ -36,12 +26,9 @@ shape = SubResource("GroundShape")
 [node name="Platform1" type="StaticBody2D" parent="World"]
 position = Vector2(380, 580)
 
-[node name="Visual" type="ColorRect" parent="World/Platform1"]
-offset_left = -96.0
-offset_top = -8.0
-offset_right = 96.0
-offset_bottom = 8.0
+[node name="Visual" type="Polygon2D" parent="World/Platform1"]
 color = Color(0.30, 0.18, 0.13, 1)
+polygon = PackedVector2Array(-96, -8, 96, -8, 96, 8, -96, 8)
 
 [node name="Collision" type="CollisionShape2D" parent="World/Platform1"]
 shape = SubResource("PlatformShape")
@@ -49,19 +36,15 @@ shape = SubResource("PlatformShape")
 [node name="Platform2" type="StaticBody2D" parent="World"]
 position = Vector2(900, 510)
 
-[node name="Visual" type="ColorRect" parent="World/Platform2"]
-offset_left = -96.0
-offset_top = -8.0
-offset_right = 96.0
-offset_bottom = 8.0
+[node name="Visual" type="Polygon2D" parent="World/Platform2"]
 color = Color(0.30, 0.18, 0.13, 1)
+polygon = PackedVector2Array(-96, -8, 96, -8, 96, 8, -96, 8)
 
 [node name="Collision" type="CollisionShape2D" parent="World/Platform2"]
 shape = SubResource("PlatformShape")
 
 [node name="Player" parent="." instance=ExtResource("1")]
 position = Vector2(200, 580)
-debug_label = NodePath("../HUD/DebugLabel")
 
 [node name="Camera" type="Camera2D" parent="."]
 script = ExtResource("2")
@@ -74,4 +57,4 @@ offset_left = 16.0
 offset_top = 16.0
 offset_right = 320.0
 offset_bottom = 200.0
-text = "state: -"
+text = "state: (init)"

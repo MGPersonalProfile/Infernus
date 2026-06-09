@@ -13,10 +13,15 @@ signal dash_ended
 enum State { IDLE, RUN, JUMP, FALL, DASH }
 
 @export var config: PlayerMovementConfig
-@export var debug_label: Label
+## Path al Label del debug overlay. Se resuelve en _ready(). Usamos
+## NodePath en vez de @export var debug_label: Label porque la
+## asignación directa de Node desde un .tscn padre no se resuelve
+## de forma fiable cuando el Player es una instancia de PackedScene.
+@export var debug_label_path: NodePath
 
 var state: State = State.IDLE
 var facing: float = 1.0  # 1 derecha, -1 izquierda
+var _debug_label: Label
 
 # Timers (se decrementan a 0)
 var _coyote_remaining: float = 0.0
@@ -33,6 +38,13 @@ func _ready() -> void:
 	if config == null:
 		push_warning("Player: no PlayerMovementConfig assigned — usando defaults")
 		config = PlayerMovementConfig.new()
+
+	if debug_label_path != NodePath(""):
+		var node: Node = get_node_or_null(debug_label_path)
+		if node is Label:
+			_debug_label = node
+		else:
+			push_warning("Player: debug_label_path no resuelve a un Label: %s" % str(debug_label_path))
 
 
 func _physics_process(delta: float) -> void:
@@ -162,9 +174,9 @@ func _post_move_state_update() -> void:
 # === Debug ===
 
 func _update_debug_overlay() -> void:
-	if debug_label == null:
+	if _debug_label == null:
 		return
-	debug_label.text = (
+	_debug_label.text = (
 		"state: %s\n" % State.keys()[state]
 		+ "velocity: (%.0f, %.0f)\n" % [velocity.x, velocity.y]
 		+ "on_floor: %s\n" % str(is_on_floor())
