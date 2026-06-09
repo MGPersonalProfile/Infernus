@@ -48,7 +48,7 @@ position = Vector2(200, 580)
 
 [node name="Camera" type="Camera2D" parent="."]
 script = ExtResource("2")
-target = NodePath("../Player")
+target_path = NodePath("../Player")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
