@@ -230,8 +230,12 @@ func _on_died() -> void:
 func _update_debug_overlay() -> void:
 	if _debug_label == null:
 		return
-	var hp_str: String = "%d/%d" % [_health.current_hp, _health.max_hp] if _health else "-"
-	var st_str: String = "%.0f/%.0f" % [_stamina.current_stamina, _stamina.max_stamina] if _stamina else "-"
+	var hp_str: String = "-"
+	if _health != null:
+		hp_str = "%d/%d" % [_health.current_hp, _health.max_hp]
+	var st_str: String = "-"
+	if _stamina != null:
+		st_str = "%.0f/%.0f" % [_stamina.current_stamina, _stamina.max_stamina]
 	_debug_label.text = (
 		"state: %s\n" % State.keys()[state]
 		+ "hp: %s\n" % hp_str
