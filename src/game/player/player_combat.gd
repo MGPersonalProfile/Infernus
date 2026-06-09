@@ -109,7 +109,7 @@ func _try_start(kind: int) -> void:
 	if _stamina != null and not _stamina.try_spend(cost):
 		print("[combat] _try_start abort: not enough stamina (need ", cost, ", have ", _stamina.current_stamina, ")")
 		return
-	_current_kind = kind
+	_current_kind = kind as AttackKind
 	if kind == AttackKind.LIGHT:
 		_state_timer = config.light_windup
 	else:
@@ -182,10 +182,16 @@ func _check_active_hits() -> void:
 	else:
 		box = _hitbox_heavy
 	if box == null:
+		print("[combat] _check_active_hits: box is null")
 		return
 	var areas := box.get_overlapping_areas()
-	if not areas.is_empty():
-		print("[combat] ACTIVE checking ", areas.size(), " overlapping areas")
+	var bodies := box.get_overlapping_bodies()
+	print("[combat] check: monitoring=", box.monitoring,
+		" mask=", box.collision_mask,
+		" global_pos=", box.global_position,
+		" scale=", box.scale,
+		" areas=", areas.size(),
+		" bodies=", bodies.size())
 	for area in areas:
 		_process_hit(area, _current_kind)
 
@@ -194,7 +200,10 @@ func _process_hit(area: Area2D, kind: int) -> void:
 	# Las HurtBox son Area2D hijas del nodo "víctima" (Enemy, etc.).
 	# El target es el parent de la HurtBox, que debería tener un hijo "Health".
 	var target: Node = area.get_parent()
-	print("[combat] _process_hit area=", area.name, " parent=", target.name if target else "null")
+	var parent_name: String = "null"
+	if target != null:
+		parent_name = str(target.name)
+	print("[combat] _process_hit area=", area.name, " parent=", parent_name)
 	if target == null or target in _already_hit_this_swing:
 		return
 	_already_hit_this_swing.append(target)

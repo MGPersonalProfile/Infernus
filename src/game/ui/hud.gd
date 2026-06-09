@@ -9,7 +9,8 @@ extends CanvasLayer
 
 @onready var _hp_bar: ProgressBar = $Container/HpBar
 @onready var _stamina_bar: ProgressBar = $Container/StaminaBar
-@onready var _debug_label: Label = $DebugLabel
+# El DebugLabel ($DebugLabel) lo escribe directamente el Player vía
+# su `debug_label_path` — el HUD solo lo aloja como contenedor.
 
 var _health: HealthComponent
 var _stamina: StaminaComponent
