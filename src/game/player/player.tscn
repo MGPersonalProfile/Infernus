@@ -1,19 +1,70 @@
-[gd_scene load_steps=4 format=3 uid="uid://infernus_player_scene"]
+[gd_scene load_steps=9 format=3 uid="uid://infernus_player_scene"]
 
 [ext_resource type="Script" path="res://src/game/player/player.gd" id="1"]
 [ext_resource type="Resource" path="res://content/tuning/player_movement.tres" id="2"]
+[ext_resource type="Script" path="res://src/engine/components/health_component.gd" id="3"]
+[ext_resource type="Script" path="res://src/engine/components/stamina_component.gd" id="4"]
+[ext_resource type="Script" path="res://src/game/player/player_combat.gd" id="5"]
+[ext_resource type="Resource" path="res://content/tuning/player_combat.tres" id="6"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
+[sub_resource type="RectangleShape2D" id="PlayerShape"]
 size = Vector2(16, 32)
+
+[sub_resource type="RectangleShape2D" id="HitboxLightShape"]
+size = Vector2(28, 32)
+
+[sub_resource type="RectangleShape2D" id="HitboxHeavyShape"]
+size = Vector2(44, 40)
 
 [node name="Player" type="CharacterBody2D"]
 script = ExtResource("1")
 config = ExtResource("2")
 debug_label_path = NodePath("../HUD/DebugLabel")
+health_path = NodePath("Health")
+stamina_path = NodePath("Stamina")
+combat_path = NodePath("Combat")
+collision_layer = 2
+collision_mask = 1
 
 [node name="Sprite" type="Polygon2D" parent="."]
 color = Color(0.85, 0.18, 0.12, 1)
 polygon = PackedVector2Array(-8, -16, 8, -16, 8, 16, -8, 16)
 
 [node name="Collision" type="CollisionShape2D" parent="."]
-shape = SubResource("RectangleShape2D_1")
+shape = SubResource("PlayerShape")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("3")
+max_hp = 100
+
+[node name="Stamina" type="Node" parent="."]
+script = ExtResource("4")
+max_stamina = 100.0
+regen_per_second = 30.0
+regen_delay_after_use = 0.5
+
+[node name="Combat" type="Node" parent="."]
+script = ExtResource("5")
+config = ExtResource("6")
+stamina_path = NodePath("../Stamina")
+hitbox_light_path = NodePath("HitboxLight")
+hitbox_heavy_path = NodePath("HitboxHeavy")
+player_path = NodePath("..")
+
+[node name="HitboxLight" type="Area2D" parent="Combat"]
+collision_layer = 0
+collision_mask = 16
+monitorable = false
+
+[node name="HitboxLightShape" type="CollisionShape2D" parent="Combat/HitboxLight"]
+position = Vector2(22, 0)
+shape = SubResource("HitboxLightShape")
+
+[node name="HitboxHeavy" type="Area2D" parent="Combat"]
+collision_layer = 0
+collision_mask = 16
+monitorable = false
+
+[node name="HitboxHeavyShape" type="CollisionShape2D" parent="Combat/HitboxHeavy"]
+position = Vector2(30, 0)
+shape = SubResource("HitboxHeavyShape")

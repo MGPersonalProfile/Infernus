@@ -4,6 +4,10 @@ extends CharacterBody2D
 ## Player controller: walk/jump/dash con coyote time, jump buffer y
 ## i-frames durante el dash. Todos los números viven en el Resource
 ## `PlayerMovementConfig` para tunearlos en caliente.
+##
+## El combate vive en un hijo (PlayerCombat). El player solo escucha
+## sus señales para bloquear input de movimiento durante un ataque y
+## consulta StaminaComponent antes de iniciar un dash.
 
 signal jumped
 signal landed
@@ -18,10 +22,22 @@ enum State { IDLE, RUN, JUMP, FALL, DASH }
 ## asignación directa de Node desde un .tscn padre no se resuelve
 ## de forma fiable cuando el Player es una instancia de PackedScene.
 @export var debug_label_path: NodePath
+## Coste de stamina del dash. Vive aquí porque el dash es propiedad
+## del Player. Se duplica en PlayerCombatConfig para que un solo
+## Resource describa todo, pero el dueño es Player.
+@export_range(0.0, 100.0, 1.0) var dash_stamina_cost: float = 25.0
+## Referencias a componentes hijos (Health, Stamina, Combat).
+@export var health_path: NodePath
+@export var stamina_path: NodePath
+@export var combat_path: NodePath
 
 var state: State = State.IDLE
 var facing: float = 1.0  # 1 derecha, -1 izquierda
 var _debug_label: Label
+var _health: HealthComponent
+var _stamina: StaminaComponent
+var _combat: PlayerCombat
+var _movement_locked: bool = false
 
 # Timers (se decrementan a 0)
 var _coyote_remaining: float = 0.0
@@ -46,6 +62,17 @@ func _ready() -> void:
 		else:
 			push_warning("Player: debug_label_path no resuelve a un Label: %s" % str(debug_label_path))
 
+	if health_path != NodePath(""):
+		_health = get_node_or_null(health_path) as HealthComponent
+		if _health != null:
+			_health.died.connect(_on_died)
+	if stamina_path != NodePath(""):
+		_stamina = get_node_or_null(stamina_path) as StaminaComponent
+	if combat_path != NodePath(""):
+		_combat = get_node_or_null(combat_path) as PlayerCombat
+		if _combat != null:
+			_combat.attack_in_progress_changed.connect(_on_attack_in_progress)
+
 
 func _physics_process(delta: float) -> void:
 	_update_timers(delta)
@@ -54,6 +81,10 @@ func _physics_process(delta: float) -> void:
 	# Estado DASH bloquea otras transiciones hasta agotarse
 	if state == State.DASH:
 		_process_dash(delta)
+	elif _movement_locked:
+		# Mientras atacamos: aplicamos gravedad pero no input horizontal
+		_apply_gravity(delta)
+		velocity.x = move_toward(velocity.x, 0.0, config.friction_ground * delta)
 	else:
 		_apply_gravity(delta)
 		_handle_horizontal(delta)
@@ -66,7 +97,17 @@ func _physics_process(delta: float) -> void:
 
 
 func is_invulnerable() -> bool:
-	return _iframes_remaining > 0.0
+	if _iframes_remaining > 0.0:
+		return true
+	if _health != null and _health.is_invulnerable():
+		return true
+	return false
+
+
+func take_damage(amount: int, source: Node = null) -> bool:
+	if _health == null:
+		return false
+	return _health.take_damage(amount, source)
 
 
 # === Tick interno ===
@@ -129,6 +170,8 @@ func _handle_dash() -> void:
 		return
 	if _dash_cooldown_remaining > 0.0:
 		return
+	if _stamina != null and not _stamina.try_spend(dash_stamina_cost):
+		return
 	_dash_direction = facing
 	_dash_remaining = config.dash_duration
 	_dash_cooldown_remaining = config.dash_cooldown
@@ -171,13 +214,28 @@ func _post_move_state_update() -> void:
 	_was_on_floor = on_floor_now
 
 
+# === Hooks de componentes ===
+
+func _on_attack_in_progress(in_progress: bool) -> void:
+	_movement_locked = in_progress
+
+
+func _on_died() -> void:
+	# Death simple: reload de la escena. Polish del game over es Semana 4.
+	get_tree().reload_current_scene()
+
+
 # === Debug ===
 
 func _update_debug_overlay() -> void:
 	if _debug_label == null:
 		return
+	var hp_str: String = "%d/%d" % [_health.current_hp, _health.max_hp] if _health else "-"
+	var st_str: String = "%.0f/%.0f" % [_stamina.current_stamina, _stamina.max_stamina] if _stamina else "-"
 	_debug_label.text = (
 		"state: %s\n" % State.keys()[state]
+		+ "hp: %s\n" % hp_str
+		+ "stamina: %s\n" % st_str
 		+ "velocity: (%.0f, %.0f)\n" % [velocity.x, velocity.y]
 		+ "on_floor: %s\n" % str(is_on_floor())
 		+ "coyote: %.2f\n" % _coyote_remaining

@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="PlayerCombatConfig" load_steps=2 format=3 uid="uid://infernus_player_combat"]
+
+[ext_resource type="Script" path="res://src/game/player/player_combat_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+light_windup = 0.08
+light_active = 0.10
+light_recovery = 0.18
+light_damage = 10
+light_stamina_cost = 15.0
+light_knockback = 80.0
+light_hitstop = 0.05
+light_shake_amplitude = 2.5
+light_shake_duration = 0.10
+heavy_windup = 0.25
+heavy_active = 0.15
+heavy_recovery = 0.40
+heavy_damage = 25
+heavy_stamina_cost = 30.0
+heavy_knockback = 200.0
+heavy_hitstop = 0.10
+heavy_shake_amplitude = 5.0
+heavy_shake_duration = 0.18
+combo_window = 0.15
+dash_stamina_cost = 25.0

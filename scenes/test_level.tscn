@@ -1,7 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://infernus_test_level"]
+[gd_scene load_steps=7 format=3 uid="uid://infernus_test_level"]
 
 [ext_resource type="PackedScene" path="res://src/game/player/player.tscn" id="1"]
 [ext_resource type="Script" path="res://src/engine/camera/follow_camera.gd" id="2"]
+[ext_resource type="PackedScene" path="res://src/game/enemies/enemy_melee.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://src/game/ui/hud.tscn" id="4"]
 
 [sub_resource type="RectangleShape2D" id="GroundShape"]
 size = Vector2(1280, 64)
@@ -45,16 +47,17 @@ shape = SubResource("PlatformShape")
 
 [node name="Player" parent="." instance=ExtResource("1")]
 position = Vector2(200, 580)
+debug_label_path = NodePath("../HUD/DebugLabel")
+
+[node name="EnemyMelee" parent="." instance=ExtResource("3")]
+position = Vector2(800, 600)
+player_path = NodePath("../Player")
+patrol_left_offset = -150.0
+patrol_right_offset = 150.0
 
 [node name="Camera" type="Camera2D" parent="."]
 script = ExtResource("2")
 target_path = NodePath("../Player")
 
-[node name="HUD" type="CanvasLayer" parent="."]
-
-[node name="DebugLabel" type="Label" parent="HUD"]
-offset_left = 16.0
-offset_top = 16.0
-offset_right = 320.0
-offset_bottom = 200.0
-text = "state: (init)"
+[node name="HUD" parent="." instance=ExtResource("4")]
+player_path = NodePath("../Player")
