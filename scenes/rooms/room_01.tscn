@@ -1,0 +1,62 @@
+[gd_scene load_steps=5 format=3 uid="uid://infernus_room_01"]
+
+[ext_resource type="Script" path="res://src/game/world/room.gd" id="1"]
+[ext_resource type="PackedScene" path="res://src/game/enemies/enemy_melee.tscn" id="2"]
+
+[sub_resource type="RectangleShape2D" id="GroundShape"]
+size = Vector2(1280, 64)
+
+[sub_resource type="RectangleShape2D" id="PlatformShape"]
+size = Vector2(192, 16)
+
+[node name="Room01" type="Node2D"]
+script = ExtResource("1")
+
+[node name="World" type="Node2D" parent="."]
+
+[node name="Ground" type="StaticBody2D" parent="World"]
+position = Vector2(640, 656)
+
+[node name="Visual" type="Polygon2D" parent="World/Ground"]
+color = Color(0.22, 0.13, 0.10, 1)
+polygon = PackedVector2Array(-640, -32, 640, -32, 640, 32, -640, 32)
+
+[node name="Collision" type="CollisionShape2D" parent="World/Ground"]
+shape = SubResource("GroundShape")
+
+[node name="Platform1" type="StaticBody2D" parent="World"]
+position = Vector2(380, 580)
+
+[node name="Visual" type="Polygon2D" parent="World/Platform1"]
+color = Color(0.30, 0.18, 0.13, 1)
+polygon = PackedVector2Array(-96, -8, 96, -8, 96, 8, -96, 8)
+
+[node name="Collision" type="CollisionShape2D" parent="World/Platform1"]
+shape = SubResource("PlatformShape")
+
+[node name="Platform2" type="StaticBody2D" parent="World"]
+position = Vector2(900, 510)
+
+[node name="Visual" type="Polygon2D" parent="World/Platform2"]
+color = Color(0.30, 0.18, 0.13, 1)
+polygon = PackedVector2Array(-96, -8, 96, -8, 96, 8, -96, 8)
+
+[node name="Collision" type="CollisionShape2D" parent="World/Platform2"]
+shape = SubResource("PlatformShape")
+
+[node name="PlayerSpawn" type="Marker2D" parent="."]
+position = Vector2(200, 580)
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Enemy1" parent="Enemies" instance=ExtResource("2")]
+position = Vector2(700, 600)
+patrol_left_offset = -120.0
+patrol_right_offset = 120.0
+player_path = NodePath("../../../Player")
+
+[node name="Enemy2" parent="Enemies" instance=ExtResource("2")]
+position = Vector2(1050, 600)
+patrol_left_offset = -100.0
+patrol_right_offset = 100.0
+player_path = NodePath("../../../Player")

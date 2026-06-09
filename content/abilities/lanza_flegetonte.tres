@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ActiveLanzaFlegetonte" load_steps=2 format=3 uid="uid://infernus_ability_lanza"]
+
+[ext_resource type="Script" path="res://src/game/abilities/active_lanza_flegetonte.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"lanza_flegetonte"
+display_name = "Lanza de Flegetonte"
+description = "Proyectil de fuego que atraviesa enemigos. Q para lanzar. Coste: 20 stamina."
+kind = 0
+theme = &"fire"
+stamina_cost = 20.0
+projectile_speed = 480.0
+projectile_damage = 18
+projectile_lifetime = 1.5

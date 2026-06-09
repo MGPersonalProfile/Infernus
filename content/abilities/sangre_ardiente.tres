@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="PassiveSangreArdiente" load_steps=2 format=3 uid="uid://infernus_ability_sangre"]
+
+[ext_resource type="Script" path="res://src/game/abilities/passive_sangre_ardiente.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"sangre_ardiente"
+display_name = "Sangre Ardiente"
+description = "+15% daño en todos los ataques cuerpo a cuerpo durante el resto de la run."
+kind = 1
+theme = &"fire"
+damage_bonus = 0.15

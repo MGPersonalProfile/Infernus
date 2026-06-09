@@ -201,6 +201,10 @@ func _process_hit(area: Area2D, kind: int) -> void:
 		dmg = config.light_damage
 	else:
 		dmg = config.heavy_damage
+	# Aplicar damage_multiplier del player (modificado por pasivas como
+	# Sangre Ardiente). 1.0 si el player no tiene esa propiedad.
+	if _player != null and "damage_multiplier" in _player:
+		dmg = int(round(float(dmg) * _player.damage_multiplier))
 	if not health.take_damage(dmg, _player):
 		return
 	# Knockback al target si tiene velocity (CharacterBody2D)

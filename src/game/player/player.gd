@@ -33,6 +33,12 @@ enum State { IDLE, RUN, JUMP, FALL, DASH }
 
 var state: State = State.IDLE
 var facing: float = 1.0  # 1 derecha, -1 izquierda
+## Multiplicador de daño aplicado por PlayerCombat. Pasivas tipo
+## "Sangre Ardiente" lo modifican vía on_acquired().
+var damage_multiplier: float = 1.0
+## Ability activa equipada (1 sola — slot único). Pulsar "ability_active"
+## la dispara. Si null, el input se ignora.
+var active_ability: Ability
 var _debug_label: Label
 var _health: HealthComponent
 var _stamina: StaminaComponent
@@ -64,8 +70,8 @@ func _ready() -> void:
 
 	if health_path != NodePath(""):
 		_health = get_node_or_null(health_path) as HealthComponent
-		if _health != null:
-			_health.died.connect(_on_died)
+		# El RunManager conecta a Health.died directamente y resetea la
+		# run desde ahí — el player ya no necesita su propio handler.
 	if stamina_path != NodePath(""):
 		_stamina = get_node_or_null(stamina_path) as StaminaComponent
 	if combat_path != NodePath(""):
@@ -77,6 +83,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	_update_timers(delta)
 	_read_input_buffers()
+	_handle_active_ability_input()
 
 	# Estado DASH bloquea otras transiciones hasta agotarse
 	if state == State.DASH:
@@ -94,6 +101,26 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_post_move_state_update()
 	_update_debug_overlay()
+
+
+func _handle_active_ability_input() -> void:
+	if active_ability == null:
+		return
+	if not Input.is_action_just_pressed("ability_active"):
+		return
+	active_ability.on_active_pressed(self)
+
+
+## Equipar una ability activa. Pasar null para limpiar el slot
+## (e.g. cuando RunManager resetea la run).
+func equip_active_ability(a: Ability) -> void:
+	active_ability = a
+
+
+## Devuelve velocity a (0, 0). Usado por RunManager al cambiar de room
+## para que el player no llegue con momentum residual.
+func reset_velocity() -> void:
+	velocity = Vector2.ZERO
 
 
 func is_invulnerable() -> bool:
@@ -218,11 +245,6 @@ func _post_move_state_update() -> void:
 
 func _on_attack_in_progress(in_progress: bool) -> void:
 	_movement_locked = in_progress
-
-
-func _on_died() -> void:
-	# Death simple: reload de la escena. Polish del game over es Semana 4.
-	get_tree().reload_current_scene()
 
 
 # === Debug ===
