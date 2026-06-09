@@ -145,14 +145,7 @@ func _try_damage_player() -> void:
 
 # === Hooks de Health ===
 
-func _on_damaged(amount: int, source: Node) -> void:
-	# DEBUG temporal: si esto no aparece en la consola, el callback nunca
-	# se ejecuta (problema de signal connect). Si aparece, el daño se
-	# aplica y debería verse el flash/knockback.
-	var hp_text: String = "?"
-	if _health != null:
-		hp_text = str(_health.current_hp)
-	print("[enemy] damaged ", amount, " by ", source, " hp=", hp_text)
+func _on_damaged(_amount: int, _source: Node) -> void:
 	state = State.STAGGER
 	_stagger_remaining = stagger_duration
 	if _sprite != null:

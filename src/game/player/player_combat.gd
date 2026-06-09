@@ -95,16 +95,13 @@ func is_attacking() -> bool:
 
 func _handle_input() -> void:
 	if Input.is_action_just_pressed("attack_light"):
-		print("[combat] attack_light pressed, state=", AttackState.keys()[state])
 		_try_start(AttackKind.LIGHT)
 	elif Input.is_action_just_pressed("attack_heavy"):
-		print("[combat] attack_heavy pressed, state=", AttackState.keys()[state])
 		_try_start(AttackKind.HEAVY)
 
 
 func _try_start(kind: int) -> void:
 	if config == null:
-		print("[combat] _try_start abort: config is null")
 		return
 	var cost: float
 	if kind == AttackKind.LIGHT:
@@ -112,7 +109,6 @@ func _try_start(kind: int) -> void:
 	else:
 		cost = config.heavy_stamina_cost
 	if _stamina != null and not _stamina.try_spend(cost):
-		print("[combat] _try_start abort: not enough stamina (need ", cost, ", have ", _stamina.current_stamina, ")")
 		return
 	_current_kind = kind as AttackKind
 	if kind == AttackKind.LIGHT:
@@ -123,7 +119,6 @@ func _try_start(kind: int) -> void:
 	_already_hit_this_swing.clear()
 	attack_started.emit(kind)
 	attack_in_progress_changed.emit(true)
-	print("[combat] attack started kind=", kind, " windup=", _state_timer)
 
 
 # === State transitions ===
@@ -141,7 +136,6 @@ func _enter_active() -> void:
 		_state_timer = config.heavy_active
 	state = AttackState.ACTIVE
 	_orient_hitboxes()
-	print("[combat] ACTIVE entered, timer=", _state_timer)
 
 
 func _enter_recovery() -> void:
@@ -187,17 +181,8 @@ func _check_active_hits() -> void:
 	else:
 		box = _hitbox_heavy
 	if box == null:
-		print("[combat] _check_active_hits: box is null")
 		return
-	var areas := box.get_overlapping_areas()
-	var bodies := box.get_overlapping_bodies()
-	print("[combat] check: monitoring=", box.monitoring,
-		" mask=", box.collision_mask,
-		" global_pos=", box.global_position,
-		" scale=", box.scale,
-		" areas=", areas.size(),
-		" bodies=", bodies.size())
-	for area in areas:
+	for area in box.get_overlapping_areas():
 		_process_hit(area, _current_kind)
 
 
@@ -205,16 +190,11 @@ func _process_hit(area: Area2D, kind: int) -> void:
 	# Las HurtBox son Area2D hijas del nodo "víctima" (Enemy, etc.).
 	# El target es el parent de la HurtBox, que debería tener un hijo "Health".
 	var target: Node = area.get_parent()
-	var parent_name: String = "null"
-	if target != null:
-		parent_name = str(target.name)
-	print("[combat] _process_hit area=", area.name, " parent=", parent_name)
 	if target == null or target in _already_hit_this_swing:
 		return
 	_already_hit_this_swing.append(target)
 	var health: HealthComponent = target.get_node_or_null("Health") as HealthComponent
 	if health == null:
-		print("[combat] target has no Health child, skip")
 		return
 	var dmg: int
 	if kind == AttackKind.LIGHT:
@@ -222,7 +202,6 @@ func _process_hit(area: Area2D, kind: int) -> void:
 	else:
 		dmg = config.heavy_damage
 	if not health.take_damage(dmg, _player):
-		print("[combat] take_damage returned false")
 		return
 	# Knockback al target si tiene velocity (CharacterBody2D)
 	if target is CharacterBody2D and _player != null:
